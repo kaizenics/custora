@@ -1,27 +1,28 @@
 {
-  "name": "@custora/api",
-  "type": "module",
-  "exports": {
-    ".": {
-      "default": "./src/index.ts"
-    },
-    "./*": {
-      "default": "./src/*.ts"
-    }
-  },
-  "scripts": {},
-  "dependencies": {
-    "@custora/auth": "workspace:*",
-    "@custora/db": "workspace:*",
-    "@custora/env": "workspace:*",
-    "@trpc/client": "catalog:",
-    "@trpc/server": "catalog:",
-    "dotenv": "catalog:",
-    "zod": "catalog:"
-  },
-  "devDependencies": {
-    "@custora/config": "workspace:*",
-    "hono": "catalog:",
-    "typescript": "catalog:"
-  }
+	"name": "@custora/api",
+	"type": "module",
+	"exports": {
+		".": {
+			"default": "./src/index.ts"
+		},
+		"./*": {
+			"default": "./src/*.ts"
+		}
+	},
+	"scripts": {},
+	"dependencies": {
+		"@custora/auth": "workspace:*",
+		"@custora/db": "workspace:*",
+		"@custora/env": "workspace:*",
+		"@trpc/client": "catalog:",
+		"@trpc/server": "catalog:",
+		"dotenv": "catalog:",
+		"drizzle-orm": "^0.45.2",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@custora/config": "workspace:*",
+		"hono": "catalog:",
+		"typescript": "catalog:"
+	}
 }
