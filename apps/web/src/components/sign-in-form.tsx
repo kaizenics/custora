@@ -1,8 +1,14 @@
 import { Button } from "@custora/ui/components/button";
+import {
+	Field,
+	FieldError,
+	FieldGroup,
+	FieldLabel,
+} from "@custora/ui/components/field";
 import { Input } from "@custora/ui/components/input";
-import { Label } from "@custora/ui/components/label";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import z from "zod";
 
@@ -15,9 +21,7 @@ export default function SignInForm({
 }: {
 	onSwitchToSignUp: () => void;
 }) {
-	const navigate = useNavigate({
-		from: "/",
-	});
+	const navigate = useNavigate({ from: "/" });
 	const { isPending } = authClient.useSession();
 
 	const form = useForm({
@@ -33,10 +37,7 @@ export default function SignInForm({
 				},
 				{
 					onSuccess: () => {
-						navigate({
-							to: "/overview",
-						});
-						toast.success("Sign in successful");
+						navigate({ to: "/overview" });
 					},
 					onError: (error) => {
 						toast.error(error.error.message || error.error.statusText);
@@ -46,7 +47,7 @@ export default function SignInForm({
 		},
 		validators: {
 			onSubmit: z.object({
-				email: z.email("Invalid email address"),
+				email: z.email("Enter a valid email address"),
 				password: z.string().min(8, "Password must be at least 8 characters"),
 			}),
 		},
@@ -57,8 +58,13 @@ export default function SignInForm({
 	}
 
 	return (
-		<div className="mx-auto mt-10 w-full max-w-md p-6">
-			<h1 className="mb-6 text-center font-bold text-3xl">Welcome Back</h1>
+		<div className="flex flex-col gap-6">
+			<div>
+				<h1 className="font-medium text-xl tracking-tight">Sign in</h1>
+				<p className="mt-1 text-muted-foreground text-sm">
+					Pick up where your attribution data left off.
+				</p>
+			</div>
 
 			<form
 				onSubmit={(e) => {
@@ -66,81 +72,84 @@ export default function SignInForm({
 					e.stopPropagation();
 					form.handleSubmit();
 				}}
-				className="space-y-4"
 			>
-				<div>
+				<FieldGroup>
 					<form.Field name="email">
 						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Email</Label>
+							<Field
+								data-invalid={field.state.meta.errors.length > 0 || undefined}
+							>
+								<FieldLabel htmlFor={field.name}>Email</FieldLabel>
 								<Input
 									id={field.name}
 									name={field.name}
 									type="email"
+									autoComplete="email"
+									// Signing in is the only thing this page does.
+									autoFocus
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
+									aria-invalid={field.state.meta.errors.length > 0 || undefined}
 								/>
-								{field.state.meta.errors.map((error) => (
-									<p key={error?.message} className="text-red-500">
-										{error?.message}
-									</p>
-								))}
-							</div>
+								<FieldError errors={field.state.meta.errors} />
+							</Field>
 						)}
 					</form.Field>
-				</div>
 
-				<div>
 					<form.Field name="password">
 						{(field) => (
-							<div className="space-y-2">
-								<Label htmlFor={field.name}>Password</Label>
+							<Field
+								data-invalid={field.state.meta.errors.length > 0 || undefined}
+							>
+								<FieldLabel htmlFor={field.name}>Password</FieldLabel>
 								<Input
 									id={field.name}
 									name={field.name}
 									type="password"
+									autoComplete="current-password"
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
+									aria-invalid={field.state.meta.errors.length > 0 || undefined}
 								/>
-								{field.state.meta.errors.map((error) => (
-									<p key={error?.message} className="text-red-500">
-										{error?.message}
-									</p>
-								))}
-							</div>
+								<FieldError errors={field.state.meta.errors} />
+							</Field>
 						)}
 					</form.Field>
-				</div>
 
-				<form.Subscribe
-					selector={(state) => ({
-						canSubmit: state.canSubmit,
-						isSubmitting: state.isSubmitting,
-					})}
-				>
-					{({ canSubmit, isSubmitting }) => (
-						<Button
-							type="submit"
-							className="w-full"
-							disabled={!canSubmit || isSubmitting}
-						>
-							{isSubmitting ? "Submitting..." : "Sign In"}
-						</Button>
-					)}
-				</form.Subscribe>
+					<form.Subscribe
+						selector={(state) => ({
+							canSubmit: state.canSubmit,
+							isSubmitting: state.isSubmitting,
+						})}
+					>
+						{({ canSubmit, isSubmitting }) => (
+							<Button
+								type="submit"
+								className="w-full"
+								disabled={!canSubmit || isSubmitting}
+							>
+								{isSubmitting ? (
+									<Loader2 data-icon="inline-start" className="animate-spin" />
+								) : null}
+								{isSubmitting ? "Signing in" : "Sign in"}
+							</Button>
+						)}
+					</form.Subscribe>
+				</FieldGroup>
 			</form>
 
-			<div className="mt-4 text-center">
+			<p className="text-muted-foreground text-sm">
+				No account yet?{" "}
 				<Button
 					variant="link"
+					className="h-auto p-0 align-baseline"
 					onClick={onSwitchToSignUp}
-					className="text-indigo-600 hover:text-indigo-800"
 				>
-					Need an account? Sign Up
+					Create one
 				</Button>
-			</div>
+			</p>
 		</div>
 	);
 }
