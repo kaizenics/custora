@@ -1,0 +1,35 @@
+{
+  "name": "custora",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "dev:web": "turbo run dev -F web",
+    "dev:server": "turbo run dev -F server",
+    "db:push": "turbo run db:push -F @custora/db",
+    "db:studio": "turbo run db:studio -F @custora/db",
+    "db:generate": "turbo run db:generate -F @custora/db",
+    "db:migrate": "turbo run db:migrate -F @custora/db",
+    "db:local": "turbo run db:local -F @custora/db",
+    "check": "biome check --write ."
+  },
+  "dependencies": {
+    "@custora/env": "workspace:*",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
+    "@custora/config": "workspace:*",
+    "@types/node": "catalog:",
+    "turbo": "^2.10.7",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@10.30.0"
+}

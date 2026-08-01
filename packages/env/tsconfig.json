@@ -1,0 +1,3 @@
+{
+  "extends": "@custora/config/tsconfig.base.json"
+}
