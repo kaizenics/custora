@@ -1,0 +1,145 @@
+import { Badge } from "@custora/ui/components/badge";
+import { cn } from "@custora/ui/lib/utils";
+import {
+	CircleAlert,
+	CircleCheck,
+	CircleHelp,
+	CircleSlash,
+	KeyRound,
+	Radio,
+} from "lucide-react";
+
+export type InstallStatus =
+	| "live"
+	| "installed_no_events"
+	| "reporting_not_found"
+	| "wrong_key"
+	| "not_found"
+	| "unreachable";
+
+type Descriptor = {
+	label: string;
+	icon: React.ComponentType<{ className?: string }>;
+	variant: "default" | "secondary" | "outline" | "destructive";
+	/** Plain-language explanation, and what to do about it. */
+	detail: string;
+};
+
+export const INSTALL_STATUS: Record<InstallStatus, Descriptor> = {
+	live: {
+		label: "Live",
+		icon: CircleCheck,
+		variant: "default",
+		detail: "Snippet found on the page and events are arriving. Nothing to do.",
+	},
+	installed_no_events: {
+		label: "Installed, no data",
+		icon: Radio,
+		variant: "secondary",
+		detail:
+			"The snippet is on the page but nothing has reported yet. Load the site once in a browser — if it stays empty, an ad blocker or a Content-Security-Policy rule is likely blocking the request.",
+	},
+	reporting_not_found: {
+		label: "Reporting",
+		icon: CircleCheck,
+		variant: "secondary",
+		detail:
+			"Events are arriving, but the snippet was not in the served HTML. That is normal when it is injected by a tag manager or a client-side router. Data is flowing, so this is fine.",
+	},
+	wrong_key: {
+		label: "Wrong key",
+		icon: KeyRound,
+		variant: "destructive",
+		detail:
+			"A Custora snippet is on the page, but with a different write key. This usually means the key was rotated and the site still has the old snippet. Copy the snippet below and redeploy.",
+	},
+	not_found: {
+		label: "Not installed",
+		icon: CircleSlash,
+		variant: "outline",
+		detail:
+			"No snippet found in the page HTML and nothing has reported. Paste the snippet below before the closing body tag and deploy.",
+	},
+	unreachable: {
+		label: "Unreachable",
+		icon: CircleAlert,
+		variant: "destructive",
+		detail:
+			"The site could not be fetched. It may be behind auth, a firewall, or not deployed yet. This does not necessarily mean the snippet is missing.",
+	},
+};
+
+export function InstallBadge({
+	status,
+	className,
+}: {
+	status: InstallStatus | null | undefined;
+	className?: string;
+}) {
+	if (!status) {
+		return (
+			<Badge variant="outline" className={className}>
+				<CircleHelp />
+				Not checked
+			</Badge>
+		);
+	}
+
+	const descriptor = INSTALL_STATUS[status];
+	return (
+		<Badge variant={descriptor.variant} className={className}>
+			<descriptor.icon />
+			{descriptor.label}
+		</Badge>
+	);
+}
+
+export function InstallDetail({
+	status,
+	url,
+	httpStatus,
+	foundKey,
+	eventCount,
+	className,
+}: {
+	status: InstallStatus;
+	url?: string;
+	httpStatus?: number | null;
+	foundKey?: string | null;
+	eventCount?: number;
+	className?: string;
+}) {
+	const descriptor = INSTALL_STATUS[status];
+
+	return (
+		<div className={cn("flex flex-col gap-1", className)}>
+			<p className="text-[11px] text-muted-foreground">{descriptor.detail}</p>
+			<dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
+				{url ? (
+					<div className="flex gap-1">
+						<dt>Checked</dt>
+						<dd className="font-mono">{url}</dd>
+					</div>
+				) : null}
+				{typeof httpStatus === "number" ? (
+					<div className="flex gap-1">
+						<dt>HTTP</dt>
+						<dd className="tabular-nums">{httpStatus}</dd>
+					</div>
+				) : null}
+				{typeof eventCount === "number" ? (
+					<div className="flex gap-1">
+						<dt>Events</dt>
+						<dd className="tabular-nums">{eventCount}</dd>
+					</div>
+				) : null}
+				{foundKey && status === "wrong_key" ? (
+					<div className="flex gap-1">
+						<dt>Key on page</dt>
+						<dd className="font-mono">{foundKey.slice(0, 14)}…</dd>
+					</div>
+				) : null}
+			</dl>
+		</div>
+	);
+}
