@@ -18,6 +18,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -30,6 +31,7 @@ import {
 	Copy,
 	Plus,
 	RefreshCw,
+	Trash2,
 	SearchCheck,
 	ShieldCheck,
 	TriangleAlert,
@@ -221,6 +223,7 @@ function SiteCard({ site }: { site: SiteRow }) {
 							<RefreshCw data-icon="inline-start" />
 							Rotate key
 						</Button>
+						<DeleteSiteDialog siteId={site.id} name={site.name} domain={site.domain} />
 					</div>
 				</CardAction>
 			</CardHeader>
@@ -463,6 +466,132 @@ function NewSiteDialog() {
 						}
 					>
 						{create.isPending ? "Adding" : "Add site"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+/**
+ * Deleting a site cascades to every visitor, session, event, touchpoint,
+ * contact, deal and rule under it. There is no undo, so the confirmation shows
+ * the real numbers and requires the domain to be typed back — the same guard
+ * the server enforces.
+ */
+function DeleteSiteDialog({
+	siteId,
+	name,
+	domain,
+}: {
+	siteId: string;
+	name: string;
+	domain: string;
+}) {
+	const trpc = useTRPC();
+	const queryClient = useQueryClient();
+	const [open, setOpen] = useState(false);
+	const [confirm, setConfirm] = useState("");
+
+	const impact = useQuery(
+		trpc.sites.deletionImpact.queryOptions({ siteId }, { enabled: open }),
+	);
+
+	const remove = useMutation(
+		trpc.sites.remove.mutationOptions({
+			onSuccess: (result) => {
+				queryClient.invalidateQueries();
+				toast.success(
+					`${result.name} deleted along with ${formatNumber(result.events)} events`,
+				);
+				setOpen(false);
+				setConfirm("");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	const matches = confirm.trim().toLowerCase() === domain.toLowerCase();
+
+	return (
+		<Dialog
+			open={open}
+			onOpenChange={(next) => {
+				setOpen(next);
+				if (!next) setConfirm("");
+			}}
+		>
+			<DialogTrigger render={<Button variant="outline" size="sm" />}>
+				<Trash2 data-icon="inline-start" />
+				Delete
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Delete {name}?</DialogTitle>
+					<DialogDescription>
+						This removes the site and everything recorded for it. It cannot be
+						undone.
+					</DialogDescription>
+				</DialogHeader>
+
+				{impact.isPending ? (
+					<Skeleton className="h-20 w-full" />
+				) : impact.data ? (
+					<ul className="flex flex-col gap-1 border p-3 text-xs">
+						<li className="flex justify-between">
+							<span className="text-muted-foreground">Visitors</span>
+							<span className="tabular-nums">
+								{formatNumber(impact.data.visitors)}
+							</span>
+						</li>
+						<li className="flex justify-between">
+							<span className="text-muted-foreground">Events</span>
+							<span className="tabular-nums">
+								{formatNumber(impact.data.events)}
+							</span>
+						</li>
+						<li className="flex justify-between">
+							<span className="text-muted-foreground">Contacts</span>
+							<span className="tabular-nums">
+								{formatNumber(impact.data.contacts)}
+							</span>
+						</li>
+						<li className="flex justify-between">
+							<span className="text-muted-foreground">Deals</span>
+							<span className="tabular-nums">
+								{formatNumber(impact.data.deals)}
+							</span>
+						</li>
+						<li className="flex justify-between">
+							<span className="text-muted-foreground">Tracking rules</span>
+							<span className="tabular-nums">
+								{formatNumber(impact.data.rules)}
+							</span>
+						</li>
+					</ul>
+				) : null}
+
+				<Field>
+					<FieldLabel htmlFor={`confirm-${siteId}`}>
+						Type <span className="font-mono">{domain}</span> to confirm
+					</FieldLabel>
+					<Input
+						id={`confirm-${siteId}`}
+						value={confirm}
+						onChange={(e) => setConfirm(e.target.value)}
+						placeholder={domain}
+						autoComplete="off"
+					/>
+				</Field>
+
+				<DialogFooter>
+					<DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+					<Button
+						variant="destructive"
+						disabled={!matches || remove.isPending}
+						onClick={() => remove.mutate({ siteId, confirmDomain: confirm.trim() })}
+					>
+						{remove.isPending ? "Deleting" : "Delete permanently"}
 					</Button>
 				</DialogFooter>
 			</DialogContent>
