@@ -37,6 +37,11 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
 				rel: "stylesheet",
 				href: appCss,
 			},
+			{
+				rel: "icon",
+				href: "/favicon.svg",
+				type: "image/svg+xml",
+			},
 		],
 	}),
 
@@ -63,7 +68,11 @@ function RootDocument() {
 					{/* Inside the provider — Toaster reads useTheme() to match its surface. */}
 					<Toaster richColors />
 				</ThemeProvider>
-				<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+				{/* Dev only: devtools render differently on server and client, which
+				    shows up as a hydration error in a production build. */}
+				{import.meta.env.DEV ? (
+					<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+				) : null}
 				<Scripts />
 			</body>
 		</html>
