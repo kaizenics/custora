@@ -112,7 +112,7 @@ function DealsPage() {
 				</div>
 			) : rows.length === 0 ? (
 				<div className="flex flex-1 items-center justify-center p-6">
-					<div className="max-w-sm text-center">
+					<div className="w-full max-w-sm text-center">
 						<p className="font-medium text-sm tracking-tight">No deals yet</p>
 						<p className="mt-1 text-muted-foreground text-xs">
 							A deal is what turns a tracked lead into revenue. Attach one to a

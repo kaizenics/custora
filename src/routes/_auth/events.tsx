@@ -187,7 +187,7 @@ function EventsPage() {
 function EmptyEvents({ hasFilters }: { hasFilters: boolean }) {
 	return (
 		<div className="flex flex-1 items-center justify-center p-6">
-			<div className="max-w-sm text-center">
+			<div className="w-full max-w-sm text-center">
 				<p className="font-medium text-sm tracking-tight">
 					{hasFilters ? "No events match those filters" : "No events yet"}
 				</p>

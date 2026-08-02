@@ -102,7 +102,7 @@ function ContactsPage() {
 				</div>
 			) : rows.length === 0 ? (
 				<div className="flex flex-1 items-center justify-center p-6">
-					<div className="max-w-sm text-center">
+					<div className="w-full max-w-sm text-center">
 						<p className="font-medium text-sm tracking-tight">
 							No contacts yet
 						</p>

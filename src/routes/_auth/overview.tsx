@@ -70,7 +70,7 @@ function OverviewPage() {
 			<>
 				<PageHeader title="Overview" />
 				<div className="flex flex-1 items-center justify-center p-6">
-					<Card className="max-w-sm text-center">
+					<Card className="w-full max-w-sm text-center">
 						<CardHeader>
 							<CardTitle>No site connected</CardTitle>
 							<CardDescription>

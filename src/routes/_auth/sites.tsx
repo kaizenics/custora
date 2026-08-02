@@ -116,7 +116,7 @@ function SitesPage() {
 					</div>
 				) : (
 					<div className="flex h-full items-center justify-center p-6">
-						<Card className="max-w-md text-center">
+						<Card className="w-full max-w-md text-center">
 							<CardHeader>
 								<CardTitle>No sites yet</CardTitle>
 								<CardDescription>
