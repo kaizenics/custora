@@ -37,6 +37,22 @@ function assertOriginConfigured(): void {
 	);
 }
 
+/**
+ * Whether anyone reaching /login can create an account.
+ *
+ * Closed in production unless ALLOW_SIGNUP is explicitly set, because this
+ * dashboard exposes every contact, deal and browsing history you have collected
+ * — an open sign-up form on a public hostname hands that to whoever finds it.
+ *
+ * Set ALLOW_SIGNUP=true just long enough to create the accounts you need, then
+ * remove it and redeploy.
+ */
+export function signUpEnabled(): boolean {
+	const flag = process.env.ALLOW_SIGNUP;
+	if (flag != null) return flag === "true" || flag === "1";
+	return env.NODE_ENV !== "production";
+}
+
 export function createAuth() {
 	assertOriginConfigured();
 	const db = createDb();
@@ -50,6 +66,7 @@ export function createAuth() {
 		trustedOrigins: trustedOrigins(),
 		emailAndPassword: {
 			enabled: true,
+			disableSignUp: !signUpEnabled(),
 		},
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,

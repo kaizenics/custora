@@ -19,7 +19,8 @@ import Loader from "./loader";
 export default function SignInForm({
 	onSwitchToSignUp,
 }: {
-	onSwitchToSignUp: () => void;
+	/** Omitted when registration is closed, so no dead link is shown. */
+	onSwitchToSignUp?: () => void;
 }) {
 	const navigate = useNavigate({ from: "/" });
 	const { isPending } = authClient.useSession();
@@ -141,16 +142,18 @@ export default function SignInForm({
 				</FieldGroup>
 			</form>
 
-			<p className="text-muted-foreground text-sm">
-				No account yet?{" "}
-				<Button
-					variant="link"
-					className="h-auto p-0 align-baseline"
-					onClick={onSwitchToSignUp}
-				>
-					Create one
-				</Button>
-			</p>
+			{onSwitchToSignUp ? (
+				<p className="text-muted-foreground text-sm">
+					No account yet?{" "}
+					<Button
+						variant="link"
+						className="h-auto p-0 align-baseline"
+						onClick={onSwitchToSignUp}
+					>
+						Create one
+					</Button>
+				</p>
+			) : null}
 		</div>
 	);
 }

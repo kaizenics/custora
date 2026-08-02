@@ -1,6 +1,8 @@
 import { Separator } from "@/components/ui/separator";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { getBaseUrl } from "@/lib/base-url";
 
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
@@ -36,6 +38,16 @@ const STAGES = [
 function RouteComponent() {
 	// Signing in is the common case; creating an account happens once.
 	const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+	// Registration is closed in production unless explicitly opened. Offering a
+	// link that always fails is worse than not offering one.
+	const [signUpEnabled, setSignUpEnabled] = useState(false);
+
+	useEffect(() => {
+		fetch(`${getBaseUrl()}/api/public-config`)
+			.then((r) => r.json())
+			.then((config) => setSignUpEnabled(Boolean(config?.signUpEnabled)))
+			.catch(() => setSignUpEnabled(false));
+	}, []);
 
 	return (
 		<div className="grid min-h-svh lg:grid-cols-2">
@@ -48,8 +60,12 @@ function RouteComponent() {
 						<span className="font-medium text-sm tracking-tight">Custora</span>
 					</div>
 
-					{mode === "sign-in" ? (
-						<SignInForm onSwitchToSignUp={() => setMode("sign-up")} />
+					{mode === "sign-in" || !signUpEnabled ? (
+						<SignInForm
+							onSwitchToSignUp={
+								signUpEnabled ? () => setMode("sign-up") : undefined
+							}
+						/>
 					) : (
 						<SignUpForm onSwitchToSignIn={() => setMode("sign-in")} />
 					)}
