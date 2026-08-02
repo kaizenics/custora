@@ -42,7 +42,13 @@ NODE_ENV=production
 ```
 
 `BETTER_AUTH_URL` must match the dashboard's public origin exactly — scheme,
-host, no trailing slash. It is both the auth base URL and the trusted origin.
+host, no trailing slash. It is both the auth base URL and the trusted origin, so
+getting it wrong makes every sign-in fail with `403 INVALID_ORIGIN` and nothing
+else to go on. Leaving the example's `http://localhost:3100` in place is the
+usual cause; the app now refuses to boot in production if it is still localhost.
+
+If the dashboard answers on more than one hostname, add the others to the
+optional `TRUSTED_ORIGINS` as a comma-separated list.
 
 ### Using a local SQLite file instead of Turso
 
