@@ -1,10 +1,12 @@
 import { trpcServer } from "@hono/trpc-server";
+import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 
 import { createContext } from "@/api/context";
 import { appRouter } from "@/api/routers/index";
-import { auth } from "@/auth";
+import { db } from "@/db";
+import { auth, signUpEnabled } from "@/auth";
 
 import { collector } from "./collector";
 
@@ -37,5 +39,37 @@ api.use(
 
 api.route("/c", collector);
 
-/** Cheap liveness probe for Coolify's health check. */
-api.get("/healthz", (c) => c.text("OK"));
+/**
+ * Public UI config. Only says whether the sign-up form is worth showing — no
+ * secrets, and it is the same answer an attacker gets by submitting the form.
+ */
+api.get("/api/public-config", (c) => c.json({ signUpEnabled: signUpEnabled() }));
+
+/**
+ * Readiness probe. Verifies the database, because a container whose Turso
+ * connection is dead can still serve a static "OK" and keep taking traffic it
+ * cannot record.
+ *
+ * The result is cached briefly so the probe cannot itself become a way to
+ * hammer the database.
+ */
+let lastCheck = { at: 0, ok: false };
+const HEALTH_CACHE_MS = 5_000;
+
+api.get("/healthz", async (c) => {
+	const now = Date.now();
+
+	if (now - lastCheck.at > HEALTH_CACHE_MS) {
+		try {
+			await db.run(sql`select 1`);
+			lastCheck = { at: now, ok: true };
+		} catch (error) {
+			console.error("[healthz] database unreachable", error);
+			lastCheck = { at: now, ok: false };
+		}
+	}
+
+	return lastCheck.ok
+		? c.text("OK")
+		: c.text("database unreachable", 503);
+});
