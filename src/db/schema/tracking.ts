@@ -276,3 +276,52 @@ export const touchpointRelations = relations(touchpoint, ({ one }) => ({
 		references: [visitSession.id],
 	}),
 }));
+
+export const RULE_TRIGGERS = ["click", "submit", "pageview"] as const;
+export type RuleTrigger = (typeof RULE_TRIGGERS)[number];
+
+export const RULE_MATCHERS = ["selector", "text", "href", "path"] as const;
+export type RuleMatcher = (typeof RULE_MATCHERS)[number];
+
+/**
+ * A tracking rule defined from the dashboard, in the shape of a Google Tag
+ * Manager trigger: "when a click matches this selector, record an event called
+ * X". The point is that adding tracking stops requiring a code change and a
+ * deploy on the tracked site.
+ *
+ * The tracker still honours data-custora-event attributes and custora.track()
+ * calls; rules are an addition, not a replacement.
+ */
+export const eventRule = sqliteTable(
+	"event_rule",
+	{
+		id: text("id").primaryKey(),
+		siteId: text("site_id")
+			.notNull()
+			.references(() => site.id, { onDelete: "cascade" }),
+		/** The event name recorded when this rule fires, e.g. "Booked a call". */
+		name: text("name").notNull(),
+		/** What the visitor did: click, submit, pageview. */
+		trigger: text("trigger").$type<RuleTrigger>().notNull(),
+		/** How `pattern` is compared. */
+		matcher: text("matcher").$type<RuleMatcher>().notNull(),
+		/** CSS selector, substring of text/href, or URL path fragment. */
+		pattern: text("pattern").notNull(),
+		enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+		createdAt: integer("created_at", { mode: "timestamp_ms" })
+			.default(now)
+			.notNull(),
+		updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+			.default(now)
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+	},
+	(table) => [
+		// The collector reads enabled rules per site on every config fetch.
+		index("event_rule_site_enabled_idx").on(table.siteId, table.enabled),
+	],
+);
+
+export const eventRuleRelations = relations(eventRule, ({ one }) => ({
+	site: one(site, { fields: [eventRule.siteId], references: [site.id] }),
+}));
