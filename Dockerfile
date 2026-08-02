@@ -44,7 +44,9 @@ VOLUME ["/app/data"]
 ENV PORT=3000
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s \
+# 30s would be ~2,880 database pings a day; the probe caches for 5s and the
+# container does not need checking that often.
+HEALTHCHECK --interval=120s --timeout=5s --start-period=20s \
 	CMD wget -qO- http://127.0.0.1:3000/healthz || exit 1
 
 CMD ["node", "server.js"]

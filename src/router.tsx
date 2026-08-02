@@ -44,7 +44,18 @@ function createQueryClient() {
         });
       },
     }),
-    defaultOptions: { queries: { staleTime: 60 * 1000 } },
+    defaultOptions: {
+      queries: {
+        /**
+         * Freshness comes from the live stream, which invalidates the affected
+         * queries the moment the collector records anything. Without that push
+         * this would have to be short and pay for polling; with it, a long
+         * stale time simply stops re-asking for data that has not changed.
+         */
+        staleTime: 5 * 60 * 1000,
+        refetchOnWindowFocus: false,
+      },
+    },
   });
 }
 

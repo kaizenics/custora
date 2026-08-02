@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 
 import { getBaseUrl } from "./base-url";
 
+/** tRPC router segments whose data an incoming event can actually change. */
+const LIVE_QUERY_KEYS = ["analytics", "events", "contacts", "deals"];
+
 /**
  * Refreshes dashboard data when the collector records something.
  *
@@ -30,11 +33,16 @@ export function useLiveActivity(siteId?: string): { connected: boolean } {
 		const onError = () => setConnected(false);
 		const onActivity = () => {
 			/**
-			 * Invalidate rather than refetch: React Query only refetches the queries
-			 * actually mounted, so a burst of activity does not wake up every screen
-			 * the user is not looking at.
+			 * Only the data that new events can change. Invalidating everything also
+			 * refetched sites, rules and config — none of which an incoming pageview
+			 * affects, and each one a billed query against Turso.
+			 *
+			 * Invalidate rather than refetch, so React Query only re-runs the queries
+			 * actually mounted instead of waking screens nobody is looking at.
 			 */
-			queryClient.invalidateQueries();
+			for (const key of LIVE_QUERY_KEYS) {
+				queryClient.invalidateQueries({ queryKey: [key] });
+			}
 		};
 
 		source.addEventListener("ready", onReady);
