@@ -18,6 +18,7 @@ import {
 	CircleDollarSign,
 	Globe,
 	LogOut,
+	MousePointerClick,
 	Settings,
 	Users,
 } from "lucide-react";
@@ -42,6 +43,7 @@ const SECTIONS: NavSection[] = [
 		items: [
 			{ to: "/overview", label: "Overview", icon: ChartNoAxesColumn },
 			{ to: "/events", label: "Events", icon: Activity },
+			{ to: "/rules", label: "Click tracking", icon: MousePointerClick },
 		],
 	},
 	{
