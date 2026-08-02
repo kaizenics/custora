@@ -116,6 +116,7 @@ function EventsPage() {
 								<TableHead>Person</TableHead>
 								<TableHead>Path</TableHead>
 								<TableHead>Device</TableHead>
+								<TableHead>Location</TableHead>
 								<TableHead className="pr-5 text-right">When</TableHead>
 							</TableRow>
 						</TableHeader>
@@ -150,11 +151,25 @@ function EventsPage() {
 									</TableCell>
 									<TableCell className="text-muted-foreground">
 										{row.device ?? "—"}
-										{row.city
-											? ` · ${row.city}`
-											: row.country
-												? ` · ${row.country}`
-												: ""}
+									</TableCell>
+									<TableCell className="text-muted-foreground">
+										{row.country ? (
+											<>
+												<span>
+													{row.city ? `${row.city}, ${row.country}` : row.country}
+												</span>
+												{row.ipAddress ? (
+													<p
+														className="font-mono text-[11px]"
+														title="Truncated before storage — the host portion is never kept"
+													>
+														{row.ipAddress}
+													</p>
+												) : null}
+											</>
+										) : (
+											<span title="No geo source configured on the collector">—</span>
+										)}
 									</TableCell>
 									<TableCell className="pr-5 text-right text-muted-foreground">
 										{formatRelative(row.createdAt)}
