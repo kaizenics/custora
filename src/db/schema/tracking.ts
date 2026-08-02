@@ -93,7 +93,23 @@ export const visitSession = sqliteTable(
 		userAgent: text("user_agent"),
 		/** "desktop" | "mobile" | "tablet" | "bot" */
 		device: text("device"),
+		/**
+		 * Where the visit came from. Resolved once when the session is created,
+		 * not per event — location does not change mid-visit.
+		 */
 		country: text("country"),
+		region: text("region"),
+		city: text("city"),
+		/**
+		 * Client address, anonymised by default: the last IPv4 octet and the last
+		 * 80 bits of IPv6 are zeroed before storage.
+		 *
+		 * A full IP is personal data under GDPR, and this tracks visitors in the
+		 * EU. Truncation keeps it useful for geography and abuse investigation
+		 * while no longer identifying a household. Set STORE_FULL_IP=1 only with a
+		 * lawful basis and a retention policy to match.
+		 */
+		ipAddress: text("ip_address"),
 		eventCount: integer("event_count").default(0).notNull(),
 	},
 	(table) => [

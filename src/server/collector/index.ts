@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 
+import { clientAddress, resolveLocation } from "./geo";
 import { allowRequest, isSameSite } from "./guard";
 import { eventSchema, ingest } from "./ingest";
 import { TRACKER_SCRIPT } from "./script";
@@ -124,6 +125,9 @@ collector.post("/v1/e", async (c) => {
 
 	const cookieId = getCookie(c, VISITOR_COOKIE) ?? null;
 
+	const address = clientAddress(c.req.raw.headers);
+	const location = await resolveLocation(c.req.raw.headers, address);
+
 	const ingested = await ingest(result.data, {
 		// The cookie wins when present; the remembered id only fills the gap left
 		// by a browser that refused to store or return it. resolveVisitor still
@@ -133,12 +137,8 @@ collector.post("/v1/e", async (c) => {
 		userAgent: c.req.header("user-agent") ?? null,
 		origin: c.req.header("origin") ?? null,
 		referer: c.req.header("referer") ?? null,
-		// Populated by Cloudflare / most reverse proxies. Coolify's Traefik can be
-		// configured to forward it; absent is fine, country is optional everywhere.
-		country:
-			c.req.header("cf-ipcountry") ??
-			c.req.header("x-vercel-ip-country") ??
-			null,
+		ipAddress: address,
+		location,
 	});
 
 	if (!ingested.ok) {

@@ -13,6 +13,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { notifyActivity } from "../live-bus";
+import type { Location } from "./geo";
+import { storableIp } from "./geo";
 import { originAllowed } from "./guard";
 import {
 	channelFromReferrer,
@@ -78,9 +80,12 @@ export type EventPayload = z.infer<typeof eventSchema>;
 export type IngestMeta = {
 	visitorId: string | null;
 	userAgent: string | null;
-	country: string | null;
 	origin?: string | null;
 	referer?: string | null;
+	/** Raw client address; stored truncated unless STORE_FULL_IP is set. */
+	ipAddress?: string | null;
+	/** Resolved once per session — location does not change mid-visit. */
+	location?: Location;
 };
 
 export type IngestResult =
@@ -239,7 +244,10 @@ async function resolveSession(
 			referrerHost: hostOf(payload.r),
 			userAgent: meta.userAgent,
 			device,
-			country: meta.country,
+			country: meta.location?.country ?? null,
+			region: meta.location?.region ?? null,
+			city: meta.location?.city ?? null,
+			ipAddress: storableIp(meta.ipAddress ?? null),
 			eventCount: 0,
 		})
 		.returning();

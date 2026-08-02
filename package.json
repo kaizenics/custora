@@ -14,6 +14,7 @@
 		"dev": "vite dev",
 		"seed:demo": "tsx src/scripts/seed-demo.ts",
 		"start": "node server.js",
+		"test:geo": "tsx src/scripts/geo-test.ts",
 		"test:guard": "tsx src/scripts/guard-test.ts",
 		"test:live": "tsx src/scripts/live-bus-test.ts",
 		"test:snippet": "tsx src/scripts/snippet-detect-test.ts",
