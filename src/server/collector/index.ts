@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 
-import { allowRequest } from "./guard";
+import { allowRequest, isSameSite } from "./guard";
 import { eventSchema, ingest } from "./ingest";
 import { TRACKER_SCRIPT } from "./script";
 
@@ -125,7 +125,11 @@ collector.post("/v1/e", async (c) => {
 	const cookieId = getCookie(c, VISITOR_COOKIE) ?? null;
 
 	const ingested = await ingest(result.data, {
-		visitorId: cookieId,
+		// The cookie wins when present; the remembered id only fills the gap left
+		// by a browser that refused to store or return it. resolveVisitor still
+		// checks the id belongs to this site, so a forged one cannot reach
+		// another site's visitor.
+		visitorId: cookieId ?? result.data.vid ?? null,
 		userAgent: c.req.header("user-agent") ?? null,
 		origin: c.req.header("origin") ?? null,
 		referer: c.req.header("referer") ?? null,
@@ -149,11 +153,27 @@ collector.post("/v1/e", async (c) => {
 	 */
 	if (ingested.visitorId !== cookieId) {
 		try {
+			/**
+			 * SameSite has to match how the collector is actually deployed.
+			 *
+			 * Same-site (collector on track.example.com, site on example.com) uses
+			 * Lax: stricter, and the reason a server-set cookie survives Safari's
+			 * 7-day cap. Cross-site (collector on an unrelated host) must use None,
+			 * because a Lax cookie is never sent back on a cross-site request — the
+			 * cookie gets stored and then ignored, and every pageview looks like a
+			 * new visitor.
+			 */
+			const sameSite = isSameSite(
+				c.req.header("origin"),
+				new URL(c.req.url).hostname,
+			);
+
 			setCookie(c, VISITOR_COOKIE, ingested.visitorId, {
 				path: "/",
 				httpOnly: true,
-				secure: isProduction,
-				sameSite: "Lax",
+				// None is only honoured on a secure connection.
+				secure: isProduction || !sameSite,
+				sameSite: sameSite ? "Lax" : "None",
 				maxAge: COOKIE_MAX_AGE,
 			});
 		} catch (error) {
@@ -164,5 +184,10 @@ collector.post("/v1/e", async (c) => {
 		}
 	}
 
-	return c.body(null, 204);
+	/**
+	 * Returns the visitor id so the tracker can persist it. The cookie is
+	 * httpOnly and unreadable from JavaScript by design, so without this the
+	 * page has no way to recover its identity when the cookie is blocked.
+	 */
+	return c.json({ v: ingested.visitorId });
 });

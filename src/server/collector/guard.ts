@@ -110,6 +110,26 @@ export function originAllowed(
 	return host === domain || host.endsWith(`.${domain}`);
 }
 
+/**
+ * Whether the caller and the collector share a registrable domain.
+ *
+ * Decides how the visitor cookie has to be scoped. Serving the collector from
+ * track.example.com for a site on example.com keeps this same-site, which is
+ * what lets the cookie use SameSite=Lax and survive Safari's ITP. Serving it
+ * from an unrelated host makes every request cross-site, where Lax cookies are
+ * never sent back at all.
+ */
+export function isSameSite(
+	origin: string | undefined,
+	collectorHost: string,
+): boolean {
+	const host = hostOf(origin);
+	if (!host) return true;
+
+	const registrable = (value: string) => value.split(".").slice(-2).join(".");
+	return registrable(host) === registrable(collectorHost.toLowerCase());
+}
+
 /** Test seam — the bucket map is module state. */
 export function resetRateLimiter() {
 	buckets.clear();

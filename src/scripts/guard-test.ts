@@ -9,6 +9,7 @@
 import {
 	RATE_LIMIT,
 	allowRequest,
+	isSameSite,
 	originAllowed,
 	resetRateLimiter,
 } from "@/server/collector/guard";
@@ -48,6 +49,26 @@ check(
 check(
 	"malformed origin does not throw and is treated as absent",
 	originAllowed("not a url", undefined, "northgate.dev"),
+);
+
+// ── cookie scoping ────────────────────────────────────────────────────────
+// Decides SameSite. Getting this wrong is how every pageview became a new
+// visitor: a Lax cookie is never returned on a cross-site request.
+check(
+	"collector on a subdomain of the site is same-site",
+	isSameSite("https://marbella.com", "track.marbella.com"),
+);
+check(
+	"collector on an unrelated domain is cross-site",
+	!isSameSite("https://marbellaelectrician.com", "custora.kaizenics.dev"),
+);
+check(
+	"same host is same-site",
+	isSameSite("https://example.com", "example.com"),
+);
+check(
+	"missing origin treated as same-site",
+	isSameSite(undefined, "custora.kaizenics.dev"),
 );
 
 // ── rate limit ────────────────────────────────────────────────────────────
