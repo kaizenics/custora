@@ -53,52 +53,53 @@ export const analyticsRouter = router({
 		const site = await resolveSite(input.siteId);
 		const since = new Date(rangeStart(input.range));
 
-		const [visitors] = await db
-			.select({ value: countDistinct(event.visitorId) })
-			.from(event)
-			.where(and(eq(event.siteId, site.id), gte(event.createdAt, since)));
+		/**
+		 * Six separate counts became three statements. Each one scans the rows it
+		 * counts and Turso bills per query, so measures over the same table are
+		 * folded into one pass with conditional aggregation rather than asked for
+		 * individually.
+		 */
+		const [eventTotals, sessionTotals, leadTotals, dealTotals] =
+			await Promise.all([
+				db
+					.select({
+						visitors: countDistinct(event.visitorId),
+						pageviews: sql<number>`sum(case when ${event.type} = 'pageview' then 1 else 0 end)`,
+					})
+					.from(event)
+					.where(and(eq(event.siteId, site.id), gte(event.createdAt, since))),
+				db
+					.select({ value: count() })
+					.from(visitSession)
+					.where(
+						and(
+							eq(visitSession.siteId, site.id),
+							gte(visitSession.startedAt, since),
+						),
+					),
+				db
+					.select({ value: count() })
+					.from(contact)
+					.where(and(eq(contact.siteId, site.id), gte(contact.createdAt, since))),
+				// Both stages in one grouped pass instead of a query each.
+				db
+					.select({
+						stage: deal.stage,
+						deals: count(),
+						revenue: sum(deal.valueCents),
+					})
+					.from(deal)
+					.where(eq(deal.siteId, site.id))
+					.groupBy(deal.stage),
+			]);
 
-		const [sessions] = await db
-			.select({ value: count() })
-			.from(visitSession)
-			.where(
-				and(
-					eq(visitSession.siteId, site.id),
-					gte(visitSession.startedAt, since),
-				),
-			);
-
-		const [pageviews] = await db
-			.select({ value: count() })
-			.from(event)
-			.where(
-				and(
-					eq(event.siteId, site.id),
-					eq(event.type, "pageview"),
-					gte(event.createdAt, since),
-				),
-			);
-
-		const [leads] = await db
-			.select({ value: count() })
-			.from(contact)
-			.where(and(eq(contact.siteId, site.id), gte(contact.createdAt, since)));
-
-		const [won] = await db
-			.select({ deals: count(), revenue: sum(deal.valueCents) })
-			.from(deal)
-			.where(
-				and(
-					eq(deal.siteId, site.id),
-					eq(deal.stage, "won"),
-					gte(deal.createdAt, since),
-				),
-			);
-
-		const [openDeals] = await db
-			.select({ deals: count(), revenue: sum(deal.valueCents) })
-			.from(deal)
-			.where(and(eq(deal.siteId, site.id), eq(deal.stage, "open")));
+		const byStage = new Map(dealTotals.map((row) => [row.stage, row]));
+		const won = byStage.get("won");
+		const openDeals = byStage.get("open");
+		const visitors = { value: eventTotals[0]?.visitors ?? 0 };
+		const pageviews = { value: Number(eventTotals[0]?.pageviews ?? 0) };
+		const sessions = sessionTotals[0];
+		const leads = leadTotals[0];
 
 		const visitorCount = visitors?.value ?? 0;
 		const leadCount = leads?.value ?? 0;

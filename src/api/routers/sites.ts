@@ -5,7 +5,7 @@ import { TRPCError } from "@trpc/server";
 import { count, desc, eq, max } from "drizzle-orm";
 import { z } from "zod";
 import { protectedProcedure, router } from "../index";
-import { resolveSite } from "../lib/site";
+import { invalidateSiteCache, resolveSite } from "../lib/site";
 import { checkInstallation, probeDomain } from "../lib/verify-install";
 
 /** Accepts a pasted URL as well as a bare host. */
@@ -40,26 +40,31 @@ async function siteStats(siteId: string) {
 
 export const sitesRouter = router({
 	list: protectedProcedure.query(async () => {
-		const rows = await db.select().from(site).orderBy(site.createdAt);
+		/**
+		 * Counts are grouped rather than fetched per site. The previous shape ran
+		 * two extra queries for every row, which Turso bills for individually and
+		 * which grew with the number of sites.
+		 */
+		const [rows, eventCounts, visitorCounts] = await Promise.all([
+			db.select().from(site).orderBy(site.createdAt),
+			db
+				.select({ siteId: event.siteId, value: count() })
+				.from(event)
+				.groupBy(event.siteId),
+			db
+				.select({ siteId: visitor.siteId, value: count() })
+				.from(visitor)
+				.groupBy(visitor.siteId),
+		]);
 
-		return Promise.all(
-			rows.map(async (row) => {
-				const [events] = await db
-					.select({ value: count() })
-					.from(event)
-					.where(eq(event.siteId, row.id));
-				const [visitors] = await db
-					.select({ value: count() })
-					.from(visitor)
-					.where(eq(visitor.siteId, row.id));
+		const events = new Map(eventCounts.map((r) => [r.siteId, r.value]));
+		const visitors = new Map(visitorCounts.map((r) => [r.siteId, r.value]));
 
-				return {
-					...row,
-					eventCount: events?.value ?? 0,
-					visitorCount: visitors?.value ?? 0,
-				};
-			}),
-		);
+		return rows.map((row) => ({
+			...row,
+			eventCount: events.get(row.id) ?? 0,
+			visitorCount: visitors.get(row.id) ?? 0,
+		}));
 	}),
 
 	current: protectedProcedure
@@ -160,6 +165,7 @@ export const sitesRouter = router({
 					writeKey: createWriteKey(),
 				})
 				.returning();
+			invalidateSiteCache();
 			return created;
 		}),
 
@@ -176,6 +182,7 @@ export const sitesRouter = router({
 				})
 				.where(eq(site.id, input.siteId))
 				.returning();
+			invalidateSiteCache();
 			return updated;
 		}),
 
@@ -248,6 +255,7 @@ export const sitesRouter = router({
 				.where(eq(event.siteId, row.id));
 
 			await db.delete(site).where(eq(site.id, row.id));
+			invalidateSiteCache();
 
 			return { name: row.name, domain: row.domain, events: events?.value ?? 0 };
 		}),
