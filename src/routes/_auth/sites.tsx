@@ -237,6 +237,7 @@ function SiteCard({ site }: { site: SiteRow }) {
 							httpStatus={check.httpStatus}
 							foundKey={check.foundKey}
 							eventCount={check.eventCount}
+							installedVia={check.installedVia}
 						/>
 						{check.error ? (
 							<p className="text-[11px] text-destructive">{check.error}</p>

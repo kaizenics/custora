@@ -43,6 +43,18 @@ const cases: Array<{
 		key: null,
 	},
 	{
+		name: "Next.js <Script afterInteractive> (client-side injected)",
+		html: `<html><head><link rel="preload" href="https://track.northgate.dev/c/v1/custora.js" as="script"/></head><body><script>self.__next_f.push([1,"e:[\\"$\\",\\"$L2\\",null,{\\"id\\":\\"custora\\",\\"src\\":\\"https://track.northgate.dev/c/v1/custora.js\\",\\"data-key\\":\\"${KEY}\\",\\"strategy\\":\\"afterInteractive\\"}]"])</script></body></html>`,
+		found: true,
+		key: KEY,
+	},
+	{
+		name: "preload hint only, no key anywhere",
+		html: `<link rel="preload" href="https://x.io/c/v1/custora.js" as="script"/>`,
+		found: true,
+		key: null,
+	},
+	{
 		name: "unrelated analytics script must not match",
 		html: `<script src="https://www.googletagmanager.com/gtag/js?id=G-XYZ"></script>`,
 		found: false,

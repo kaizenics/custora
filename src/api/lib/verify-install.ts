@@ -28,6 +28,8 @@ export type InstallCheck = {
 	keyMatches: boolean;
 	/** Set when a snippet is present under some other key — usually a stale key after a rotate. */
 	foundKey: string | null;
+	/** "script" for a tag in the HTML, "injected" for a framework that mounts it from JS. */
+	installedVia: "script" | "injected" | null;
 	eventCount: number;
 	lastEventAt: Date | null;
 	error: string | null;
@@ -172,16 +174,45 @@ async function fetchPage(
 export function findSnippet(html: string): {
 	found: boolean;
 	key: string | null;
+	/** How it was installed — worth reporting, because the two behave differently. */
+	via: "script" | "injected" | null;
 } {
 	const scriptTags = html.match(/<script\b[^>]*>/gi) ?? [];
 
 	for (const tag of scriptTags) {
 		if (!/\/c\/v1\/custora\.js/i.test(tag)) continue;
 		const key = tag.match(/data-key\s*=\s*["']([^"']+)["']/i);
-		return { found: true, key: key?.[1] ?? null };
+		return { found: true, key: key?.[1] ?? null, via: "script" };
 	}
 
-	return { found: false, key: null };
+	/**
+	 * Frameworks that mount the script from JavaScript leave no <script> tag in
+	 * the served HTML. Next.js <Script strategy="afterInteractive"> is the common
+	 * case: the document carries a preload hint and the component's props inside
+	 * a serialised payload, and the real tag only appears after hydration.
+	 *
+	 * Treating that as "not installed" is wrong and confusing — the snippet is
+	 * there and will run.
+	 */
+	/**
+	 * A bare mention of the path is not an install — documentation and blog posts
+	 * quote it too. Require it to appear either as a link the browser will
+	 * preload, or as the value of a `src` inside a serialised payload.
+	 */
+	const preloaded = /<link\b[^>]*\/c\/v1\/custora\.js[^>]*>/i.test(html);
+	const inPayload = /\\?["']src\\?["']\s*:\s*\\?["'][^"'\\]*\/c\/v1\/custora\.js/i.test(html);
+
+	if (!preloaded && !inPayload) {
+		return { found: false, key: null, via: null };
+	}
+
+	// The key may be a plain attribute or escaped inside a JSON payload.
+	const key =
+		html.match(/data-key\s*=\s*["']([^"']+)["']/i)?.[1] ??
+		html.match(/\\?["']data-key\\?["']\s*:\s*\\?["']([^"'\\]+)\\?["']/i)?.[1] ??
+		null;
+
+	return { found: true, key, via: "injected" };
 }
 
 export async function checkInstallation(params: {
@@ -198,6 +229,7 @@ export async function checkInstallation(params: {
 		snippetFound: false,
 		keyMatches: false,
 		foundKey: null as string | null,
+		installedVia: null as "script" | "injected" | null,
 		eventCount: params.eventCount,
 		lastEventAt: params.lastEventAt,
 	};
@@ -226,6 +258,7 @@ export async function checkInstallation(params: {
 		snippetFound: snippet.found,
 		keyMatches,
 		foundKey: snippet.key,
+		installedVia: snippet.via,
 		error: null as string | null,
 	};
 

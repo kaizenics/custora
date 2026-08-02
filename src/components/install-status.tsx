@@ -100,6 +100,7 @@ export function InstallDetail({
 	httpStatus,
 	foundKey,
 	eventCount,
+	installedVia,
 	className,
 }: {
 	status: InstallStatus;
@@ -107,6 +108,7 @@ export function InstallDetail({
 	httpStatus?: number | null;
 	foundKey?: string | null;
 	eventCount?: number;
+	installedVia?: "script" | "injected" | null;
 	className?: string;
 }) {
 	const descriptor = INSTALL_STATUS[status];
@@ -114,6 +116,12 @@ export function InstallDetail({
 	return (
 		<div className={cn("flex flex-col gap-1", className)}>
 			<p className="text-[11px] text-muted-foreground">{descriptor.detail}</p>
+			{installedVia === "injected" ? (
+				<p className="text-[11px] text-muted-foreground">
+					Mounted from JavaScript rather than as a tag in the HTML — normal for
+					Next.js &lt;Script&gt;, a tag manager, or a client-side router.
+				</p>
+			) : null}
 			<dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
 				{url ? (
 					<div className="flex gap-1">
