@@ -62,7 +62,7 @@ const SECTIONS: NavSection[] = [
 	},
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ live }: { live?: boolean }) {
 	const trpc = useTRPC();
 	const site = useQuery(trpc.sites.current.queryOptions({}, { retry: false }));
 
@@ -77,9 +77,18 @@ export function AppSidebar() {
 					{site.isPending ? (
 						<Skeleton className="mt-0.5 h-3 w-24" />
 					) : (
-						<p className="truncate text-[11px] text-muted-foreground">
-							{site.data?.domain ?? "No site yet"}
-						</p>
+						<div className="flex items-center gap-1.5">
+							<p className="truncate text-[11px] text-muted-foreground">
+								{site.data?.domain ?? "No site yet"}
+							</p>
+							{live ? (
+								<span
+									className="size-1.5 shrink-0 rounded-full bg-chart-2"
+									title="Live — the dashboard updates as events arrive"
+									aria-label="Live"
+								/>
+							) : null}
+						</div>
 					)}
 				</div>
 			</div>
