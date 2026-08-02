@@ -12,6 +12,7 @@ import {
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { originAllowed } from "./guard";
 import {
 	channelFromReferrer,
 	classifyUserAgent,
@@ -67,11 +68,13 @@ export type IngestMeta = {
 	visitorId: string | null;
 	userAgent: string | null;
 	country: string | null;
+	origin?: string | null;
+	referer?: string | null;
 };
 
 export type IngestResult =
 	| { ok: true; visitorId: string; sessionId: string; contactId: string | null }
-	| { ok: false; reason: "unknown_key" | "bot" };
+	| { ok: false; reason: "unknown_key" | "bot" | "foreign_origin" };
 
 /**
  * The write path.
@@ -90,6 +93,15 @@ export async function ingest(
 		.where(eq(site.writeKey, payload.k))
 		.limit(1);
 	if (!siteRow) return { ok: false, reason: "unknown_key" };
+
+	/**
+	 * The write key says which site this claims to be; the origin says where the
+	 * request actually came from. Rejecting a mismatch stops a key lifted from
+	 * one site's source being used to write events against it from elsewhere.
+	 */
+	if (!originAllowed(meta.origin ?? undefined, meta.referer ?? undefined, siteRow.domain)) {
+		return { ok: false, reason: "foreign_origin" };
+	}
 
 	const device = classifyUserAgent(meta.userAgent);
 	if (device === "bot") return { ok: false, reason: "bot" };

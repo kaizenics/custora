@@ -14,6 +14,7 @@
 		"dev": "vite dev",
 		"seed:demo": "tsx src/scripts/seed-demo.ts",
 		"start": "node server.js",
+		"test:guard": "tsx src/scripts/guard-test.ts",
 		"test:snippet": "tsx src/scripts/snippet-detect-test.ts",
 		"test:tracker": "tsx src/scripts/tracker-rules-test.ts"
 	},

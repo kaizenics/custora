@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
 
+import { allowRequest } from "./guard";
 import { eventSchema, ingest } from "./ingest";
 import { TRACKER_SCRIPT } from "./script";
 
@@ -103,11 +104,31 @@ collector.post("/v1/e", async (c) => {
 		return c.body(null, 204);
 	}
 
+	/**
+	 * Throttle before touching the database. The write key is public, so this is
+	 * what bounds how much damage a reader of the page source can do — both to
+	 * the data and to the database itself.
+	 *
+	 * 429 rather than a silent 204: the tracker's retry queue should not replay
+	 * events that were rejected for volume, and a real client that trips this is
+	 * misbehaving and should see it.
+	 */
+	const client =
+		c.req.header("cf-connecting-ip") ??
+		c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+		"unknown";
+
+	if (!allowRequest(result.data.k, client)) {
+		return c.text("Too many requests", 429);
+	}
+
 	const cookieId = getCookie(c, VISITOR_COOKIE) ?? null;
 
 	const ingested = await ingest(result.data, {
 		visitorId: cookieId,
 		userAgent: c.req.header("user-agent") ?? null,
+		origin: c.req.header("origin") ?? null,
+		referer: c.req.header("referer") ?? null,
 		// Populated by Cloudflare / most reverse proxies. Coolify's Traefik can be
 		// configured to forward it; absent is fine, country is optional everywhere.
 		country:
