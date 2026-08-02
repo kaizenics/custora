@@ -1,4 +1,5 @@
 import { trpcServer } from "@hono/trpc-server";
+import { streamSSE } from "hono/streaming";
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
@@ -9,6 +10,7 @@ import { db } from "@/db";
 import { auth, signUpEnabled } from "@/auth";
 
 import { collector } from "./collector";
+import { subscribe } from "./live-bus";
 
 export { API_PREFIXES, isApiPath } from "./paths.ts";
 
@@ -38,6 +40,51 @@ api.use(
 );
 
 api.route("/c", collector);
+
+/**
+ * Pushes a ping whenever the collector records something, so the dashboard can
+ * refresh on activity instead of polling. An idle dashboard costs nothing.
+ *
+ * Authenticated: this reveals that a site is receiving traffic, which is not
+ * public information.
+ */
+api.get("/api/live", async (c) => {
+	const session = await auth.api.getSession({ headers: c.req.raw.headers });
+	if (!session) return c.text("Unauthorized", 401);
+
+	const siteId = c.req.query("siteId");
+
+	return streamSSE(c, async (stream) => {
+		let closed = false;
+		const finish = () => {
+			closed = true;
+		};
+		stream.onAbort(finish);
+
+		const unsubscribe = subscribe((changedSiteId) => {
+			if (closed) return;
+			if (siteId && siteId !== changedSiteId) return;
+			void stream.writeSSE({ event: "activity", data: changedSiteId });
+		});
+
+		try {
+			await stream.writeSSE({ event: "ready", data: "ok" });
+
+			/**
+			 * Reverse proxies close connections that go quiet — Traefik in front of
+			 * Coolify among them. A periodic comment keeps this one alive without
+			 * looking like activity to the client.
+			 */
+			while (!closed) {
+				await stream.sleep(25_000);
+				if (closed) break;
+				await stream.writeSSE({ event: "ping", data: String(Date.now()) });
+			}
+		} finally {
+			unsubscribe();
+		}
+	});
+});
 
 /**
  * Public UI config. Only says whether the sign-up form is worth showing — no

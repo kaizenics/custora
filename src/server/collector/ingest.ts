@@ -12,6 +12,7 @@ import {
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { notifyActivity } from "../live-bus";
 import { originAllowed } from "./guard";
 import {
 	channelFromReferrer,
@@ -156,6 +157,10 @@ export async function ingest(
 			at,
 		);
 	}
+
+	// Tell any open dashboard rather than leaving it to poll. The bus coalesces,
+	// so a burst of events produces one notification.
+	notifyActivity(siteRow.id);
 
 	return {
 		ok: true,
