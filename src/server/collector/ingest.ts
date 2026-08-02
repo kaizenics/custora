@@ -59,6 +59,16 @@ export const eventSchema = z.object({
 	sw: z.number().nullish(),
 	tz: z.string().max(80).nullish(),
 	ts: z.number().optional(),
+	/**
+	 * Visitor id the browser remembered from a previous response. The cookie is
+	 * still preferred; this is what keeps a visit stitched together when the
+	 * cookie is blocked, which is the norm for a cross-site collector in Safari
+	 * and Firefox.
+	 */
+	vid: z
+		.string()
+		.regex(/^vis_[0-9a-z]{16}$/)
+		.optional(),
 	value: z.number().nullish(),
 	currency: z.string().length(3).nullish(),
 });

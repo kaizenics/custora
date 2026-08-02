@@ -31,6 +31,7 @@ export const TRACKER_SCRIPT = `(function (w, d) {
   var ENDPOINT = ORIGIN + "/c/v1/e";
   var QUEUE_KEY = "__custora_q";
   var ATTR_KEY = "__custora_attr";
+  var VID_KEY = "__custora_vid";
   var QUEUE_MAX = 50;
 
   var CLICK_IDS = {
@@ -128,9 +129,23 @@ export const TRACKER_SCRIPT = `(function (w, d) {
         credentials: "include",
         headers: { "Content-Type": "text/plain;charset=UTF-8" },
         body: body
-      }).catch(function () {
-        if (retryable !== false) enqueue(payload);
-      });
+      })
+        .then(function (res) {
+          /**
+           * The visitor cookie is httpOnly and cannot be read from here, and a
+           * cross-site collector often cannot set one at all — Safari and
+           * Firefox block third-party cookies outright. Remembering the id the
+           * server assigns is what keeps a visit stitched together in those
+           * browsers instead of counting every pageview as a new visitor.
+           */
+          return res && res.json ? res.json() : null;
+        })
+        .then(function (data) {
+          if (data && data.v) store(VID_KEY, data.v);
+        })
+        .catch(function () {
+          if (retryable !== false) enqueue(payload);
+        });
     } catch (e) {
       if (retryable !== false) enqueue(payload);
     }
@@ -147,6 +162,7 @@ export const TRACKER_SCRIPT = `(function (w, d) {
       props: props || null,
       traits: traits || null,
       ctx: attribution(),
+      vid: read(VID_KEY) || undefined,
       sw: w.screen ? w.screen.width : null,
       tz: Intl && Intl.DateTimeFormat ? Intl.DateTimeFormat().resolvedOptions().timeZone : null,
       ts: Date.now()
