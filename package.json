@@ -4,17 +4,18 @@
 	"type": "module",
 	"packageManager": "pnpm@10.30.0",
 	"scripts": {
-		"dev": "vite dev",
 		"build": "vite build && tsdown",
-		"start": "node server.js",
-		"check-types": "tsc --noEmit",
 		"check": "biome check .",
-		"db:push": "drizzle-kit push",
+		"check-types": "tsc --noEmit",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
+		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
+		"dev": "vite dev",
 		"seed:demo": "tsx src/scripts/seed-demo.ts",
-		"test:snippet": "tsx src/scripts/snippet-detect-test.ts"
+		"start": "node server.js",
+		"test:snippet": "tsx src/scripts/snippet-detect-test.ts",
+		"test:tracker": "tsx src/scripts/tracker-rules-test.ts"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.6.0",
@@ -58,6 +59,7 @@
 		"@tanstack/react-router-devtools": "^1.167.0",
 		"@testing-library/dom": "^10.4.1",
 		"@testing-library/react": "^16.3.2",
+		"@types/jsdom": "^28.0.3",
 		"@types/node": "^22.20.1",
 		"@types/react": "^19.2.17",
 		"@types/react-dom": "^19.2.3",
