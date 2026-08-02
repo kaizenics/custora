@@ -1,4 +1,7 @@
+import { db } from "@/db";
+import { eventRule, site } from "@/db/schema";
 import { env } from "@/env/server";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { cors } from "hono/cors";
@@ -47,6 +50,42 @@ collector.get("/v1/custora.js", (c) => {
 		"public, max-age=300, stale-while-revalidate=86400",
 	);
 	return c.body(TRACKER_SCRIPT);
+});
+
+/**
+ * Tracking rules for one site, in the compact shape the tracker expects.
+ *
+ * Public and keyed by the write key, exactly like ingest. Rules are not secret:
+ * they are CSS selectors describing a page the visitor is already looking at.
+ *
+ * Cached for a minute so a rule change reaches live traffic quickly without the
+ * script re-fetching on every pageview.
+ */
+collector.get("/v1/config", async (c) => {
+	const writeKey = c.req.query("k");
+	c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+
+	if (!writeKey) return c.json({ rules: [] });
+
+	const [siteRow] = await db
+		.select({ id: site.id })
+		.from(site)
+		.where(eq(site.writeKey, writeKey))
+		.limit(1);
+
+	if (!siteRow) return c.json({ rules: [] });
+
+	const rules = await db
+		.select({
+			n: eventRule.name,
+			t: eventRule.trigger,
+			m: eventRule.matcher,
+			p: eventRule.pattern,
+		})
+		.from(eventRule)
+		.where(and(eq(eventRule.siteId, siteRow.id), eq(eventRule.enabled, true)));
+
+	return c.json({ rules });
 });
 
 collector.post("/v1/e", async (c) => {

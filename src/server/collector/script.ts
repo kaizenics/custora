@@ -27,7 +27,8 @@ export const TRACKER_SCRIPT = `(function (w, d) {
     return;
   }
 
-  var ENDPOINT = new URL(script.src).origin + "/c/v1/e";
+  var ORIGIN = new URL(script.src).origin;
+  var ENDPOINT = ORIGIN + "/c/v1/e";
   var QUEUE_KEY = "__custora_q";
   var ATTR_KEY = "__custora_attr";
   var QUEUE_MAX = 50;
@@ -169,6 +170,75 @@ export const TRACKER_SCRIPT = `(function (w, d) {
     emit("identify", null, null, traits);
   }
 
+
+  /**
+   * Dashboard-defined rules, in the shape of a Google Tag Manager trigger:
+   * "when a click matches this selector, record an event called X". Fetched
+   * once per page load so adding tracking needs no change to this site's code.
+   */
+  var rules = [];
+  var rulesReady = false;
+  var pendingClicks = [];
+
+  /**
+   * A rule's pattern is user input that reaches querySelector, so every match
+   * runs inside try/catch. One malformed selector typed into the dashboard must
+   * not take down tracking for the whole site.
+   */
+  function ruleMatches(rule, el) {
+    try {
+      if (rule.m === "selector") return el.closest ? el.closest(rule.p) : null;
+      if (rule.m === "text") {
+        var text = (el.textContent || "").trim().toLowerCase();
+        return text.indexOf(String(rule.p).toLowerCase()) > -1 ? el : null;
+      }
+      if (rule.m === "href") {
+        var link = el.closest ? el.closest("a[href]") : null;
+        return link && link.href.indexOf(rule.p) > -1 ? link : null;
+      }
+      if (rule.m === "path") {
+        return w.location.pathname.indexOf(rule.p) > -1 ? el : null;
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function applyRules(trigger, el) {
+    for (var i = 0; i < rules.length; i++) {
+      var rule = rules[i];
+      if (rule.t !== trigger) continue;
+      var hit = ruleMatches(rule, el);
+      if (hit) {
+        emit(trigger === "submit" ? "form_submit" : trigger === "pageview" ? "custom" : "click", rule.n, {
+          rule: rule.m + ":" + rule.p,
+          text: (hit.textContent || "").trim().slice(0, 120)
+        }, null);
+      }
+    }
+  }
+
+  function loadRules() {
+    try {
+      fetch(ORIGIN + "/c/v1/config?k=" + encodeURIComponent(KEY), {
+        credentials: "omit"
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (body) {
+          rules = (body && body.rules) || [];
+          rulesReady = true;
+          // Clicks that landed before the rules arrived still count.
+          for (var i = 0; i < pendingClicks.length; i++) {
+            applyRules("click", pendingClicks[i]);
+          }
+          pendingClicks = [];
+          applyRules("pageview", d.body || d.documentElement);
+        })
+        .catch(function () { rulesReady = true; pendingClicks = []; });
+    } catch (e) {
+      rulesReady = true;
+    }
+  }
+
   /**
    * Delegated click capture. Outbound links and anything explicitly marked with
    * data-custora-event are recorded — not every click on the page, which would
@@ -178,6 +248,12 @@ export const TRACKER_SCRIPT = `(function (w, d) {
     "click",
     function (ev) {
       var el = ev.target;
+
+      // Rules are evaluated against the clicked element itself; the walk below
+      // handles the attribute and outbound-link cases.
+      if (rulesReady) applyRules("click", el);
+      else if (pendingClicks.length < 20) pendingClicks.push(el);
+
       while (el && el !== d.body) {
         var marked = el.getAttribute && el.getAttribute("data-custora-event");
         if (marked) {
@@ -237,6 +313,7 @@ export const TRACKER_SCRIPT = `(function (w, d) {
 
       var label = form.getAttribute("data-custora-form") || form.id || form.name || "Form submit";
       emit("form_submit", label, { fields: fields.length }, Object.keys(traits).length ? traits : null);
+      applyRules("submit", form);
     },
     true
   );
@@ -274,5 +351,6 @@ export const TRACKER_SCRIPT = `(function (w, d) {
 
   flushQueue();
   page();
+  loadRules();
 })(window, document);
 `;
