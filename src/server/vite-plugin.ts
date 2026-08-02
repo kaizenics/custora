@@ -1,7 +1,7 @@
 import { getRequestListener } from "@hono/node-server";
 import type { Plugin } from "vite";
 
-import { isApiPath } from "./paths";
+import { isApiPath } from "./paths.ts";
 
 /**
  * Serves the Hono API inside the Vite dev server.

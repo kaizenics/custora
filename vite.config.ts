@@ -3,7 +3,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-import { apiPlugin } from "./src/server/vite-plugin";
+import { apiPlugin } from "./src/server/vite-plugin.ts";
 
 export default defineConfig({
 	server: {

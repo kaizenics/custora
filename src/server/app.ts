@@ -8,7 +8,7 @@ import { auth } from "@/auth";
 
 import { collector } from "./collector";
 
-export { API_PREFIXES, isApiPath } from "./paths";
+export { API_PREFIXES, isApiPath } from "./paths.ts";
 
 /**
  * Every non-page HTTP surface: auth, tRPC, and the public tracking collector.
