@@ -3,6 +3,7 @@ import { analyticsRouter } from "./analytics";
 import { contactsRouter } from "./contacts";
 import { dealsRouter } from "./deals";
 import { eventsRouter } from "./events";
+import { rulesRouter } from "./rules";
 import { sitesRouter } from "./sites";
 
 export const appRouter = router({
@@ -10,6 +11,7 @@ export const appRouter = router({
 	sites: sitesRouter,
 	analytics: analyticsRouter,
 	events: eventsRouter,
+	rules: rulesRouter,
 	contacts: contactsRouter,
 	deals: dealsRouter,
 });
