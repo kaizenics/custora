@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { createId, createWriteKey } from "@/db/ids";
-import { event, site, visitor } from "@/db/schema";
+import { contact, deal, event, eventRule, site, visitor } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { count, desc, eq, max } from "drizzle-orm";
 import { z } from "zod";
@@ -177,6 +177,79 @@ export const sitesRouter = router({
 				.where(eq(site.id, input.siteId))
 				.returning();
 			return updated;
+		}),
+
+	/**
+	 * What deleting this site would destroy. Shown in the confirmation so the
+	 * decision is made against real numbers rather than a generic warning.
+	 */
+	deletionImpact: protectedProcedure
+		.input(z.object({ siteId: z.string() }))
+		.query(async ({ input }) => {
+			const [row] = await db
+				.select({ domain: site.domain })
+				.from(site)
+				.where(eq(site.id, input.siteId))
+				.limit(1);
+			if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Site not found" });
+
+			const scoped = (table: typeof event | typeof visitor | typeof contact | typeof deal | typeof eventRule) =>
+				db
+					.select({ value: count() })
+					.from(table)
+					.where(eq(table.siteId, input.siteId));
+
+			const [events, visitors, contacts, deals, rules] = await Promise.all([
+				scoped(event),
+				scoped(visitor),
+				scoped(contact),
+				scoped(deal),
+				scoped(eventRule),
+			]);
+
+			return {
+				domain: row.domain,
+				events: events[0]?.value ?? 0,
+				visitors: visitors[0]?.value ?? 0,
+				contacts: contacts[0]?.value ?? 0,
+				deals: deals[0]?.value ?? 0,
+				rules: rules[0]?.value ?? 0,
+			};
+		}),
+
+	/**
+	 * Deletes a site and, by foreign-key cascade, every visitor, session, event,
+	 * touchpoint, contact, deal and rule belonging to it. There is no undo and no
+	 * soft delete: the attribution history for that domain is gone.
+	 *
+	 * The domain has to be typed back. The check lives here rather than only in
+	 * the dialog, because a confirmation the client can skip is not one.
+	 */
+	remove: protectedProcedure
+		.input(z.object({ siteId: z.string(), confirmDomain: z.string() }))
+		.mutation(async ({ input }) => {
+			const [row] = await db
+				.select({ id: site.id, name: site.name, domain: site.domain })
+				.from(site)
+				.where(eq(site.id, input.siteId))
+				.limit(1);
+			if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Site not found" });
+
+			if (input.confirmDomain.trim().toLowerCase() !== row.domain.toLowerCase()) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: `Type ${row.domain} exactly to confirm deletion.`,
+				});
+			}
+
+			const [events] = await db
+				.select({ value: count() })
+				.from(event)
+				.where(eq(event.siteId, row.id));
+
+			await db.delete(site).where(eq(site.id, row.id));
+
+			return { name: row.name, domain: row.domain, events: events?.value ?? 0 };
 		}),
 
 	/** Most recent events for a site, used to confirm data is flowing after install. */
