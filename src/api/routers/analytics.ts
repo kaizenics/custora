@@ -6,7 +6,16 @@ import {
 	touchpoint,
 	visitSession,
 } from "@/db/schema";
-import { and, count, countDistinct, eq, gte, sql, sum } from "drizzle-orm";
+import {
+	and,
+	count,
+	countDistinct,
+	eq,
+	gte,
+	isNotNull,
+	sql,
+	sum,
+} from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
@@ -269,6 +278,33 @@ export const analyticsRouter = router({
 			.from(event)
 			.where(and(eq(event.siteId, site.id), gte(event.createdAt, since)))
 			.groupBy(event.name, event.type)
+			.orderBy(sql`count(*) desc`)
+			.limit(10);
+	}),
+
+	/**
+	 * Where visits physically originate. Sessions rather than events, because a
+	 * visitor browsing five pages is one location, not five.
+	 */
+	topLocations: protectedProcedure.input(baseInput).query(async ({ input }) => {
+		const site = await resolveSite(input.siteId);
+		const since = new Date(rangeStart(input.range));
+
+		return db
+			.select({
+				country: visitSession.country,
+				city: visitSession.city,
+				sessions: count(),
+			})
+			.from(visitSession)
+			.where(
+				and(
+					eq(visitSession.siteId, site.id),
+					gte(visitSession.startedAt, since),
+					isNotNull(visitSession.country),
+				),
+			)
+			.groupBy(visitSession.country, visitSession.city)
 			.orderBy(sql`count(*) desc`)
 			.limit(10);
 	}),

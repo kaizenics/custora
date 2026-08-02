@@ -63,6 +63,9 @@ function OverviewPage() {
 	const coverage = useQuery(
 		trpc.analytics.coverage.queryOptions({ range }, { retry: false }),
 	);
+	const locations = useQuery(
+		trpc.analytics.topLocations.queryOptions({ range }, { retry: false }),
+	);
 
 	// Every query fails the same way when no site exists yet, so one check covers it.
 	if (summary.error) {
@@ -204,6 +207,41 @@ function OverviewPage() {
 										</p>
 									</>
 								) : null}
+							</CardContent>
+						</Card>
+
+						<Card>
+							<CardHeader>
+								<CardTitle>Top locations</CardTitle>
+								<CardDescription>
+									Sessions by place, so one visitor reading five pages counts
+									once.
+								</CardDescription>
+							</CardHeader>
+							<CardContent>
+								{locations.isPending ? (
+									<div className="flex flex-col gap-2">
+										{Array.from({ length: 5 }, (_, i) => (
+											<Skeleton key={i} className="h-7 w-full" />
+										))}
+									</div>
+								) : locations.data?.length ? (
+									<MagnitudeList
+										rows={locations.data.map((row) => ({
+											key: `${row.country}-${row.city}`,
+											label: row.city
+												? `${row.city}, ${row.country}`
+												: (row.country ?? "Unknown"),
+											value: row.sessions,
+										}))}
+									/>
+								) : (
+									<p className="py-6 text-center text-muted-foreground text-xs">
+										No location data yet. Country comes from the edge — put
+										Cloudflare in front of the tracking domain, or set
+										GEO_LOOKUP=1 to resolve it from the visitor's address.
+									</p>
+								)}
 							</CardContent>
 						</Card>
 

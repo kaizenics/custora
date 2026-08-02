@@ -150,7 +150,11 @@ function EventsPage() {
 									</TableCell>
 									<TableCell className="text-muted-foreground">
 										{row.device ?? "—"}
-										{row.country ? ` · ${row.country}` : ""}
+										{row.city
+											? ` · ${row.city}`
+											: row.country
+												? ` · ${row.country}`
+												: ""}
 									</TableCell>
 									<TableCell className="pr-5 text-right text-muted-foreground">
 										{formatRelative(row.createdAt)}

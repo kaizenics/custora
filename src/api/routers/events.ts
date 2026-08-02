@@ -63,6 +63,7 @@ export const eventsRouter = router({
 					contactName: contact.name,
 					device: visitSession.device,
 					country: visitSession.country,
+					city: visitSession.city,
 				})
 				.from(event)
 				.leftJoin(contact, eq(contact.id, event.contactId))
