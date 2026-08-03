@@ -22,11 +22,14 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	Check,
+	ChevronRight,
 	Copy,
+	Info,
 	Plus,
 	RefreshCw,
 	ShieldCheck,
@@ -101,11 +104,13 @@ function InstallPage() {
 						<NewSiteDialog open={addOpen} onOpenChange={setAddOpen} />
 					</div>
 				) : isPending || !site ? (
-					<div className="flex flex-col gap-4 p-5">
-						<Skeleton className="h-40 w-full" />
+					<div className="max-w-4xl p-6">
+						<Skeleton className="h-64 w-full" />
 					</div>
 				) : (
-					<div className="flex flex-col gap-4 p-4">
+					// Capped: prose and code run to ~1700px otherwise, and a line that
+					// wide is hard to track back to the start of the next one.
+					<div className="max-w-4xl p-6">
 						<SiteCard site={site} />
 					</div>
 				)}
@@ -159,13 +164,20 @@ function SiteCard({ site }: { site: WorkspaceSite }) {
 						}
 					/>
 				</CardTitle>
-				<CardDescription>
-					{formatNumber(site.visitorCount)} visitors ·{" "}
-					{formatNumber(site.eventCount)} events · added{" "}
-					{formatDate(site.createdAt)}
-					{site.lastCheckedAt
-						? ` · checked ${formatRelative(site.lastCheckedAt)}`
-						: ""}
+				{/* Counts carry the meaning here, so they take the weight and the
+				    words around them stay quiet. */}
+				<CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+					<Stat value={formatNumber(site.visitorCount)} label="visitors" />
+					<Dot />
+					<Stat value={formatNumber(site.eventCount)} label="events" />
+					<Dot />
+					<span>added {formatDate(site.createdAt)}</span>
+					{site.lastCheckedAt ? (
+						<>
+							<Dot />
+							<span>checked {formatRelative(site.lastCheckedAt)}</span>
+						</>
+					) : null}
 				</CardDescription>
 				<CardAction>
 					<div className="flex items-center gap-2">
@@ -191,7 +203,7 @@ function SiteCard({ site }: { site: WorkspaceSite }) {
 				</CardAction>
 			</CardHeader>
 
-			<CardContent className="flex flex-col gap-3">
+			<CardContent className="flex flex-col gap-6">
 				{check ? (
 					<>
 						<InstallDetail
@@ -203,35 +215,33 @@ function SiteCard({ site }: { site: WorkspaceSite }) {
 							installedVia={check.installedVia}
 						/>
 						{check.error ? (
-							<p className="text-[11px] text-destructive">{check.error}</p>
+							<p className="text-destructive text-sm">{check.error}</p>
 						) : null}
 						<Separator />
 					</>
 				) : null}
 
-				<div>
-					<div className="mb-1.5 flex items-center justify-between">
-						<p className="font-medium text-[11px] text-muted-foreground">
-							Paste before the closing &lt;/body&gt; tag
-						</p>
-						<CopyButton
-							value={snippetFor(site.writeKey)}
-							label="Copy snippet"
-						/>
-					</div>
-					<pre className="overflow-x-auto border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed">
-						{snippetFor(site.writeKey)}
-					</pre>
-				</div>
+				<CodeBlock
+					title={
+						<>
+							Paste before the closing <code className="font-mono">&lt;/body&gt;</code>{" "}
+							tag
+						</>
+					}
+					action={
+						<CopyButton value={snippetFor(site.writeKey)} label="Copy snippet" />
+					}
+					code={snippetFor(site.writeKey)}
+				/>
 
-				<Separator />
-
-				<details>
-					<summary className="cursor-pointer font-medium text-[11px] text-muted-foreground">
+				<details className="group">
+					<summary className="flex cursor-pointer list-none items-center gap-1.5 font-medium text-foreground text-sm [&::-webkit-details-marker]:hidden">
+						<ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
 						Tracking calls you can make from your own code
 					</summary>
-					<pre className="mt-2 overflow-x-auto border bg-muted/40 p-3 font-mono text-[11px] leading-relaxed">
-						{`// Identify a person — this is what stitches their anonymous
+					<CodeBlock
+						className="mt-3"
+						code={`// Identify a person — this is what stitches their anonymous
 // history to a contact, retroactively.
 custora.identify({ email: "sam@northgate.dev", name: "Sam Okafor" })
 
@@ -240,20 +250,74 @@ custora.track("Booked a call", { plan: "pro" })
 
 // Mark a button without writing any JS.
 <button data-custora-event="Pricing CTA">Start free</button>`}
-					</pre>
+					/>
 				</details>
 
-				<Separator />
-
-				<p className="text-[11px] text-muted-foreground">
-					For production, point{" "}
-					<code className="font-mono">track.{site.domain}</code> at this server
-					and serve the snippet from there. A first-party subdomain is what
-					keeps the visitor cookie alive past Safari&apos;s 7-day cap on
-					script-set cookies.
-				</p>
+				{/* Advice worth acting on, so it gets a surface of its own rather
+				    than trailing off as grey text under the code. */}
+				<div className="flex gap-3 border bg-muted/30 p-4">
+					<Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+					<div className="flex flex-col gap-1">
+						<p className="font-medium text-foreground text-sm">
+							Before going to production
+						</p>
+						<p className="text-muted-foreground text-sm leading-relaxed">
+							Point <code className="font-mono text-foreground">track.{site.domain}</code>{" "}
+							at this server and serve the snippet from there. A first-party
+							subdomain is what keeps the visitor cookie alive past Safari&apos;s
+							7-day cap on script-set cookies.
+						</p>
+					</div>
+				</div>
 			</CardContent>
 		</Card>
+	);
+}
+
+/** A number worth reading, with its unit kept out of the way. */
+function Stat({ value, label }: { value: string; label: string }) {
+	return (
+		<span>
+			<span className="font-medium text-foreground tabular-nums">{value}</span>{" "}
+			{label}
+		</span>
+	);
+}
+
+function Dot() {
+	return <span aria-hidden className="text-muted-foreground/50">·</span>;
+}
+
+/**
+ * Label and code as one object rather than two floating pieces — the label
+ * previously read as body text that happened to sit above a box.
+ *
+ * The code is set larger than the surrounding UI on purpose: it is the thing
+ * on this page that has to be read character by character.
+ */
+function CodeBlock({
+	title,
+	action,
+	code,
+	className,
+}: {
+	title?: React.ReactNode;
+	action?: React.ReactNode;
+	code: string;
+	className?: string;
+}) {
+	return (
+		<div className={cn("border", className)}>
+			{title || action ? (
+				<div className="flex items-center justify-between gap-2 border-b bg-muted/40 py-1.5 pr-1.5 pl-3">
+					<p className="font-medium text-foreground text-xs">{title}</p>
+					{action}
+				</div>
+			) : null}
+			<pre className="overflow-x-auto bg-muted/30 p-4 font-mono text-[13px] leading-6">
+				{code}
+			</pre>
+		</div>
 	);
 }
 

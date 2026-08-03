@@ -114,40 +114,64 @@ export function InstallDetail({
 	const descriptor = INSTALL_STATUS[status];
 
 	return (
-		<div className={cn("flex flex-col gap-1", className)}>
-			<p className="text-[11px] text-muted-foreground">{descriptor.detail}</p>
+		<div className={cn("flex flex-col gap-3", className)}>
+			{/* The verdict is what the reader came for, so it is the most legible
+			    line here; the caveat below it stays secondary. */}
+			<p className="text-foreground text-sm leading-relaxed">
+				{descriptor.detail}
+			</p>
 			{installedVia === "injected" ? (
-				<p className="text-[11px] text-muted-foreground">
+				<p className="text-muted-foreground text-sm leading-relaxed">
 					Mounted from JavaScript rather than as a tag in the HTML — normal for
 					Next.js &lt;Script&gt;, a tag manager, or a client-side router.
 				</p>
 			) : null}
-			<dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-muted-foreground">
-				{url ? (
-					<div className="flex gap-1">
-						<dt>Checked</dt>
-						<dd className="font-mono">{url}</dd>
-					</div>
-				) : null}
-				{typeof httpStatus === "number" ? (
-					<div className="flex gap-1">
-						<dt>HTTP</dt>
-						<dd className="tabular-nums">{httpStatus}</dd>
-					</div>
-				) : null}
-				{typeof eventCount === "number" ? (
-					<div className="flex gap-1">
-						<dt>Events</dt>
-						<dd className="tabular-nums">{eventCount}</dd>
-					</div>
-				) : null}
-				{foundKey && status === "wrong_key" ? (
-					<div className="flex gap-1">
-						<dt>Key on page</dt>
-						<dd className="font-mono">{foundKey.slice(0, 14)}…</dd>
-					</div>
-				) : null}
+			<dl className="flex flex-wrap gap-x-6 gap-y-2">
+				<Fact label="Checked" value={url} mono />
+				<Fact
+					label="HTTP"
+					value={typeof httpStatus === "number" ? String(httpStatus) : undefined}
+				/>
+				<Fact
+					label="Events"
+					value={typeof eventCount === "number" ? String(eventCount) : undefined}
+				/>
+				<Fact
+					label="Key on page"
+					value={
+						foundKey && status === "wrong_key"
+							? `${foundKey.slice(0, 14)}…`
+							: undefined
+					}
+					mono
+				/>
 			</dl>
+		</div>
+	);
+}
+
+/** Label above value, so the eye finds the values on one line. */
+function Fact({
+	label,
+	value,
+	mono,
+}: {
+	label: string;
+	value?: string;
+	mono?: boolean;
+}) {
+	if (!value) return null;
+	return (
+		<div className="flex flex-col gap-0.5">
+			<dt className="text-muted-foreground text-xs">{label}</dt>
+			<dd
+				className={cn(
+					"text-foreground text-sm tabular-nums",
+					mono && "font-mono text-[13px]",
+				)}
+			>
+				{value}
+			</dd>
 		</div>
 	);
 }
