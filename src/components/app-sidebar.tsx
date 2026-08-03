@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
+	DropdownMenuGroup,
 	DropdownMenuItem,
 	DropdownMenuLabel,
 	DropdownMenuSeparator,
@@ -186,28 +187,34 @@ function WorkspaceSwitcher({ live }: { live?: boolean }) {
 				</DropdownMenuTrigger>
 
 				<DropdownMenuContent align="start" className="w-56">
-					<DropdownMenuLabel className="text-[11px] text-muted-foreground">
-						Workspaces
-					</DropdownMenuLabel>
-					{sites.map((candidate) => (
-						<DropdownMenuItem
-							key={candidate.id}
-							onClick={() => switchTo(candidate.id)}
-						>
-							<span className="flex size-5 shrink-0 items-center justify-center bg-muted font-semibold text-[9px] uppercase">
-								{candidate.name.slice(0, 1)}
-							</span>
-							<span className="min-w-0 flex-1">
-								<span className="block truncate text-xs">{candidate.name}</span>
-								<span className="block truncate text-[10px] text-muted-foreground">
-									{candidate.domain}
+					{/* The label is Base UI's GroupLabel, which reads its group from
+					    context — it throws rather than rendering bare. */}
+					<DropdownMenuGroup>
+						<DropdownMenuLabel className="text-[11px] text-muted-foreground">
+							Workspaces
+						</DropdownMenuLabel>
+						{sites.map((candidate) => (
+							<DropdownMenuItem
+								key={candidate.id}
+								onClick={() => switchTo(candidate.id)}
+							>
+								<span className="flex size-5 shrink-0 items-center justify-center bg-muted font-semibold text-[9px] uppercase">
+									{candidate.name.slice(0, 1)}
 								</span>
-							</span>
-							{candidate.id === siteId ? (
-								<Check className="size-3.5 shrink-0" />
-							) : null}
-						</DropdownMenuItem>
-					))}
+								<span className="min-w-0 flex-1">
+									<span className="block truncate text-xs">
+										{candidate.name}
+									</span>
+									<span className="block truncate text-[10px] text-muted-foreground">
+										{candidate.domain}
+									</span>
+								</span>
+								{candidate.id === siteId ? (
+									<Check className="size-3.5 shrink-0" />
+								) : null}
+							</DropdownMenuItem>
+						))}
+					</DropdownMenuGroup>
 
 					<DropdownMenuSeparator />
 
@@ -273,10 +280,8 @@ function SidebarUser() {
 					<ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="start" className="w-56">
-					<DropdownMenuItem render={<Link to="/sites" />}>
-						<Globe />
-						Sites and tracking
-					</DropdownMenuItem>
+					{/* Sites moved to the workspace switcher, which is where the
+					    question "which site" is now asked. */}
 					<DropdownMenuItem render={<Link to="/settings" />}>
 						<Settings />
 						Settings
