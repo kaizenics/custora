@@ -47,6 +47,7 @@ import { toast } from "sonner";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
 import { FilterSelect } from "@/components/filter-select";
+import { StackedAreaChart } from "@/components/stacked-area-chart";
 import { TableScroll } from "@/components/table-scroll";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
@@ -98,10 +99,38 @@ const MATCHER_LABEL = Object.fromEntries(
 function RulesPage() {
 	const trpc = useTRPC();
 	const rules = useQuery(trpc.rules.list.queryOptions({}, { retry: false }));
+	const series = useQuery(
+		trpc.rules.series.queryOptions({ range: "30d" }, { retry: false }),
+	);
 
 	return (
 		<>
 			<PageHeader title="Click tracking" action={<NewRuleDialog />} />
+
+			{rules.data?.length ? (
+				<div className="border-b p-4">
+					<Card>
+						<CardHeader>
+							<CardTitle>Rule fires over time</CardTitle>
+							<CardDescription>
+								Last 30 days. Capped at the five busiest rules — beyond that the
+								bands stop being tellable apart by colour.
+							</CardDescription>
+						</CardHeader>
+						<CardContent>
+							{series.isPending ? (
+								<Skeleton className="h-56 w-full" />
+							) : (
+								<StackedAreaChart
+									data={series.data?.series ?? []}
+									series={series.data?.names ?? []}
+									emptyMessage="No rule has fired yet in this range."
+								/>
+							)}
+						</CardContent>
+					</Card>
+				</div>
+			) : null}
 
 			<Toolbar>
 				<p className="text-[11px] text-muted-foreground">

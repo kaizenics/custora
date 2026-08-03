@@ -16,6 +16,14 @@ import { Search } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
+import { StackedAreaChart } from "@/components/stacked-area-chart";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import { FilterSelect } from "@/components/filter-select";
 import { type Range, RangePicker } from "@/components/range-picker";
 import { TableScroll } from "@/components/table-scroll";
@@ -52,6 +60,9 @@ function EventsPage() {
 	const counts = useQuery(
 		trpc.events.countsByType.queryOptions({ range }, { retry: false }),
 	);
+	const series = useQuery(
+		trpc.events.series.queryOptions({ range }, { retry: false }),
+	);
 
 	const events = useInfiniteQuery(
 		trpc.events.list.infiniteQueryOptions(
@@ -71,6 +82,29 @@ function EventsPage() {
 				title="Events"
 				action={<RangePicker value={range} onChange={setRange} />}
 			/>
+
+			<div className="border-b p-4">
+				<Card>
+					<CardHeader>
+						<CardTitle>Activity by type</CardTitle>
+						<CardDescription>
+							Stacked, because every event has exactly one type — the bands add
+							up to the total rather than overlapping.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						{series.isPending ? (
+							<Skeleton className="h-56 w-full" />
+						) : (
+							<StackedAreaChart
+								data={series.data ?? []}
+								series={[...EVENT_TYPES]}
+								labels={TYPE_LABEL}
+							/>
+						)}
+					</CardContent>
+				</Card>
+			</div>
 
 			<Toolbar>
 				<FilterSelect
