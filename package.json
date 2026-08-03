@@ -18,7 +18,8 @@
 		"test:guard": "tsx src/scripts/guard-test.ts",
 		"test:live": "tsx src/scripts/live-bus-test.ts",
 		"test:snippet": "tsx src/scripts/snippet-detect-test.ts",
-		"test:tracker": "tsx src/scripts/tracker-rules-test.ts"
+		"test:tracker": "tsx src/scripts/tracker-rules-test.ts",
+		"test:workspace": "tsx src/scripts/workspace-test.ts"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.6.0",
