@@ -208,6 +208,74 @@ async function renderDialog(name: string) {
 
 await renderDialog("add-site dialog: controlled, no trigger");
 
+console.log("\nsyntax highlighting");
+
+const { CodeBlock } = await import("@/components/code-block");
+
+/**
+ * A language Prism does not have loaded still renders — as one undifferentiated
+ * plain-text run. So checking that it "rendered" proves nothing; these assert
+ * that specific constructs came out as the token colours they should be.
+ */
+async function renderCode(
+	name: string,
+	code: string,
+	language: string,
+	expectations: Array<{ text: string; token: string }>,
+) {
+	const host = dom.window.document.createElement("div");
+	dom.window.document.body.appendChild(host);
+	const root = createRoot(host);
+
+	await act(async () => {
+		root.render(h(CodeBlock, { code, language }));
+	});
+
+	const spans = [...host.querySelectorAll("span")];
+	for (const { text, token } of expectations) {
+		const hit = spans.find((s) => s.textContent?.includes(text));
+		const colour = hit?.getAttribute("style") ?? "";
+		const want = `var(--code-${token})`;
+		if (!hit) {
+			failures++;
+			console.log(`FAIL  ${name}: "${text}" not found in output`);
+		} else if (!colour.includes(want)) {
+			failures++;
+			console.log(
+				`FAIL  ${name}: "${text}" should be ${token}\n        got style: ${colour || "(none)"}`,
+			);
+		} else {
+			console.log(`  ok  ${name}: "${text}" → ${token}`);
+		}
+	}
+
+	await act(async () => root.unmount());
+	host.remove();
+}
+
+// The two snippets the Install page actually renders.
+await renderCode(
+	"snippet (markup)",
+	'<script defer\n  src="http://localhost:3100/c/v1/custora.js"\n  data-key="ck_abc"></script>',
+	"markup",
+	[
+		{ text: "script", token: "tag" },
+		{ text: "data-key", token: "attr" },
+		{ text: "ck_abc", token: "string" },
+	],
+);
+
+await renderCode(
+	"tracking calls (jsx)",
+	'// Identify a person\ncustora.identify({ email: "sam@northgate.dev" })\n<button data-custora-event="Pricing CTA">Start free</button>',
+	"jsx",
+	[
+		{ text: "// Identify a person", token: "comment" },
+		{ text: "identify", token: "function" },
+		{ text: "sam@northgate.dev", token: "string" },
+	],
+);
+
 // The control is expected to fail, so one failure here is the correct result.
 const expected = 1;
 console.log(

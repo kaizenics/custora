@@ -22,7 +22,6 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -39,6 +38,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app-sidebar";
+import { CodeBlock } from "@/components/code-block";
 import { NewSiteDialog } from "@/components/new-site-dialog";
 import { getBaseUrl } from "@/lib/base-url";
 import {
@@ -241,6 +241,7 @@ function SiteCard({ site }: { site: WorkspaceSite }) {
 					</summary>
 					<CodeBlock
 						className="mt-3"
+						language="jsx"
 						code={`// Identify a person — this is what stitches their anonymous
 // history to a contact, retroactively.
 custora.identify({ email: "sam@northgate.dev", name: "Sam Okafor" })
@@ -286,39 +287,6 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 function Dot() {
 	return <span aria-hidden className="text-muted-foreground/50">·</span>;
-}
-
-/**
- * Label and code as one object rather than two floating pieces — the label
- * previously read as body text that happened to sit above a box.
- *
- * The code is set larger than the surrounding UI on purpose: it is the thing
- * on this page that has to be read character by character.
- */
-function CodeBlock({
-	title,
-	action,
-	code,
-	className,
-}: {
-	title?: React.ReactNode;
-	action?: React.ReactNode;
-	code: string;
-	className?: string;
-}) {
-	return (
-		<div className={cn("border", className)}>
-			{title || action ? (
-				<div className="flex items-center justify-between gap-2 border-b bg-muted/40 py-1.5 pr-1.5 pl-3">
-					<p className="font-medium text-foreground text-xs">{title}</p>
-					{action}
-				</div>
-			) : null}
-			<pre className="overflow-x-auto bg-muted/30 p-4 font-mono text-[13px] leading-6">
-				{code}
-			</pre>
-		</div>
-	);
 }
 
 function CopyButton({ value, label }: { value: string; label: string }) {

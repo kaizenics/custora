@@ -51,6 +51,24 @@
   --chart-cat-3: #1baf7a;
   --chart-cat-4: #eda100;
   --chart-cat-5: #e87ba4;
+
+  /*
+   * Syntax colours, taken from VS Code's Light+ so a snippet here looks like
+   * the same snippet in the editor it is about to be pasted into.
+   *
+   * Kept as variables rather than passed in from JS: the highlighter would
+   * otherwise need to know the active theme, and would show the wrong palette
+   * for one frame on load.
+   */
+  --code-fg: #1f1f1f;
+  --code-comment: #008000;
+  --code-string: #a31515;
+  --code-keyword: #0000ff;
+  --code-tag: #800000;
+  --code-attr: #e50000;
+  --code-function: #795e26;
+  --code-number: #098658;
+  --code-punctuation: #4a4a4a;
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
@@ -93,6 +111,17 @@
   --chart-cat-3: #199e70;
   --chart-cat-4: #c98500;
   --chart-cat-5: #d55181;
+
+  /* VS Code Dark+, the counterpart to the Light+ values above. */
+  --code-fg: #d4d4d4;
+  --code-comment: #6a9955;
+  --code-string: #ce9178;
+  --code-keyword: #569cd6;
+  --code-tag: #569cd6;
+  --code-attr: #9cdcfe;
+  --code-function: #dcdcaa;
+  --code-number: #b5cea8;
+  --code-punctuation: #a9a9a9;
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
