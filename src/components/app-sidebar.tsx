@@ -4,27 +4,32 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuLabel,
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
 	Activity,
 	ChartNoAxesColumn,
+	Check,
 	ChevronsUpDown,
 	CircleDollarSign,
 	Globe,
 	LogOut,
 	MousePointerClick,
+	Plus,
 	Settings,
 	Users,
 } from "lucide-react";
 
+import { useState } from "react";
+
+import { NewSiteDialog } from "@/components/new-site-dialog";
 import { authClient } from "@/lib/auth-client";
-import { useTRPC } from "@/utils/trpc";
+import { useWorkspace } from "@/lib/workspace";
 
 type NavItem = {
 	to: string;
@@ -55,43 +60,14 @@ const SECTIONS: NavSection[] = [
 	},
 	{
 		label: "Setup",
-		items: [
-			{ to: "/sites", label: "Sites", icon: Globe },
-			{ to: "/settings", label: "Settings", icon: Settings },
-		],
+		items: [{ to: "/settings", label: "Settings", icon: Settings }],
 	},
 ];
 
 export function AppSidebar({ live }: { live?: boolean }) {
-	const trpc = useTRPC();
-	const site = useQuery(trpc.sites.current.queryOptions({}, { retry: false }));
-
 	return (
 		<aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
-			<div className="flex h-14 items-center gap-2 border-b px-4">
-				<div className="flex size-6 items-center justify-center bg-primary font-semibold text-[10px] text-primary-foreground">
-					C
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="truncate font-medium text-sm tracking-tight">Custora</p>
-					{site.isPending ? (
-						<Skeleton className="mt-0.5 h-3 w-24" />
-					) : (
-						<div className="flex items-center gap-1.5">
-							<p className="truncate text-[11px] text-muted-foreground">
-								{site.data?.domain ?? "No site yet"}
-							</p>
-							{live ? (
-								<span
-									className="size-1.5 shrink-0 rounded-full bg-chart-2"
-									title="Live — the dashboard updates as events arrive"
-									aria-label="Live"
-								/>
-							) : null}
-						</div>
-					)}
-				</div>
-			</div>
+			<WorkspaceSwitcher live={live} />
 
 			<nav className="flex-1 overflow-y-auto p-2">
 				{SECTIONS.map((section) => (
@@ -119,6 +95,142 @@ export function AppSidebar({ live }: { live?: boolean }) {
 
 			<SidebarUser />
 		</aside>
+	);
+}
+
+/**
+ * One workspace is one site, so the switcher is also the site identity — there
+ * is no separate "which brand am I looking at" indicator anywhere else on the
+ * screen, which is why the domain stays visible on the trigger rather than only
+ * inside the open menu.
+ */
+function WorkspaceSwitcher({ live }: { live?: boolean }) {
+	const { site, sites, siteId, isPending, switchTo } = useWorkspace();
+	const [addOpen, setAddOpen] = useState(false);
+
+	if (isPending) {
+		return (
+			<div className="flex h-14 items-center gap-2 border-b px-4">
+				<Skeleton className="size-6 shrink-0" />
+				<div className="flex-1">
+					<Skeleton className="h-3.5 w-28" />
+					<Skeleton className="mt-1 h-2.5 w-20" />
+				</div>
+			</div>
+		);
+	}
+
+	// Without a site there is nothing to switch between, so the control becomes
+	// the one action that resolves that.
+	if (!site) {
+		return (
+			<div className="flex h-14 items-center border-b px-2">
+				<button
+					type="button"
+					onClick={() => setAddOpen(true)}
+					className="flex h-10 w-full items-center gap-2 px-2 text-left transition-colors hover:bg-muted"
+				>
+					<span className="flex size-6 shrink-0 items-center justify-center border border-dashed text-muted-foreground">
+						<Plus className="size-3.5" />
+					</span>
+					<span className="min-w-0 flex-1">
+						<span className="block truncate font-medium text-sm tracking-tight">
+							Add a site
+						</span>
+						<span className="block truncate text-[11px] text-muted-foreground">
+							Nothing tracked yet
+						</span>
+					</span>
+				</button>
+				<NewSiteDialog
+					open={addOpen}
+					onOpenChange={setAddOpen}
+					onCreated={switchTo}
+				/>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex h-14 items-center border-b px-2">
+			<DropdownMenu>
+				<DropdownMenuTrigger
+					render={
+						<button
+							type="button"
+							className="flex h-10 w-full items-center gap-2 px-2 text-left transition-colors hover:bg-muted"
+						/>
+					}
+				>
+					<span className="flex size-6 shrink-0 items-center justify-center bg-primary font-semibold text-[10px] text-primary-foreground uppercase">
+						{site.name.slice(0, 1)}
+					</span>
+					<span className="min-w-0 flex-1">
+						<span className="block truncate font-medium text-sm tracking-tight">
+							{site.name}
+						</span>
+						<span className="flex items-center gap-1.5">
+							<span className="truncate text-[11px] text-muted-foreground">
+								{site.domain}
+							</span>
+							{live ? (
+								<span
+									className="size-1.5 shrink-0 rounded-full bg-chart-2"
+									title="Live — the dashboard updates as events arrive"
+									aria-label="Live"
+								/>
+							) : null}
+						</span>
+					</span>
+					<ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+				</DropdownMenuTrigger>
+
+				<DropdownMenuContent align="start" className="w-56">
+					<DropdownMenuLabel className="text-[11px] text-muted-foreground">
+						Workspaces
+					</DropdownMenuLabel>
+					{sites.map((candidate) => (
+						<DropdownMenuItem
+							key={candidate.id}
+							onClick={() => switchTo(candidate.id)}
+						>
+							<span className="flex size-5 shrink-0 items-center justify-center bg-muted font-semibold text-[9px] uppercase">
+								{candidate.name.slice(0, 1)}
+							</span>
+							<span className="min-w-0 flex-1">
+								<span className="block truncate text-xs">{candidate.name}</span>
+								<span className="block truncate text-[10px] text-muted-foreground">
+									{candidate.domain}
+								</span>
+							</span>
+							{candidate.id === siteId ? (
+								<Check className="size-3.5 shrink-0" />
+							) : null}
+						</DropdownMenuItem>
+					))}
+
+					<DropdownMenuSeparator />
+
+					<DropdownMenuItem onClick={() => setAddOpen(true)}>
+						<Plus className="size-3.5" />
+						Add site
+					</DropdownMenuItem>
+					<DropdownMenuItem render={<Link to="/sites" />}>
+						<Globe className="size-3.5" />
+						Manage sites
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+
+			{/* Outside the menu on purpose — see NewSiteDialog's controlled mode. */}
+			<NewSiteDialog
+				open={addOpen}
+				onOpenChange={setAddOpen}
+				// Switch straight to what was just created; adding a site and then
+				// still looking at the old one reads as the form having failed.
+				onCreated={switchTo}
+			/>
+		</div>
 	);
 }
 
