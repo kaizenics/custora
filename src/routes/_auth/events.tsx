@@ -29,6 +29,7 @@ import { type Range, RangePicker } from "@/components/range-picker";
 import { TableScroll } from "@/components/table-scroll";
 import { formatNumber, formatRelative, shortenUrl } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
+import { useWorkspace } from "@/lib/workspace";
 
 export const Route = createFileRoute("/_auth/events")({
 	component: EventsPage,
@@ -53,22 +54,24 @@ const TYPE_LABEL: Record<EventType, string> = {
 
 function EventsPage() {
 	const trpc = useTRPC();
+	const { siteId, isEmpty } = useWorkspace();
 	const [range, setRange] = useState<Range>("30d");
 	const [type, setType] = useState<EventType | undefined>();
 	const [search, setSearch] = useState("");
 
 	const counts = useQuery(
-		trpc.events.countsByType.queryOptions({ range }, { retry: false }),
+		trpc.events.countsByType.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const series = useQuery(
-		trpc.events.series.queryOptions({ range }, { retry: false }),
+		trpc.events.series.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 
 	const events = useInfiniteQuery(
 		trpc.events.list.infiniteQueryOptions(
-			{ range, type, search: search.trim() || undefined, limit: 50 },
+			{ siteId, range, type, search: search.trim() || undefined, limit: 50 },
 			{
 				retry: false,
+				enabled: Boolean(siteId),
 				getNextPageParam: (last) => last.nextCursor ?? undefined,
 			},
 		),
@@ -93,7 +96,7 @@ function EventsPage() {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						{series.isPending ? (
+						{series.isPending && !isEmpty ? (
 							<Skeleton className="h-56 w-full" />
 						) : (
 							<StackedAreaChart
@@ -133,7 +136,7 @@ function EventsPage() {
 				</div>
 			</Toolbar>
 
-			{events.isPending ? (
+			{events.isPending && !isEmpty ? (
 				<div className="flex flex-1 flex-col gap-px p-5">
 					{Array.from({ length: 12 }, (_, i) => (
 						<Skeleton key={i} className="h-9 w-full" />

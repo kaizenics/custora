@@ -38,6 +38,7 @@ import { FilterSelect } from "@/components/filter-select";
 import { TableScroll } from "@/components/table-scroll";
 import { formatCurrency, formatNumber, formatRelative } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
+import { useWorkspace } from "@/lib/workspace";
 
 export const Route = createFileRoute("/_auth/deals")({
 	component: DealsPage,
@@ -54,12 +55,15 @@ const STAGE_LABEL: Record<Stage, string> = {
 
 function DealsPage() {
 	const trpc = useTRPC();
+	const { siteId, isEmpty } = useWorkspace();
 	const [stage, setStage] = useState<Stage | undefined>();
 	const [page, setPage] = useState(0);
 
-	const totals = useQuery(trpc.deals.totals.queryOptions({}, { retry: false }));
+	const totals = useQuery(
+		trpc.deals.totals.queryOptions({ siteId }, { retry: false, enabled: Boolean(siteId) }),
+	);
 	const deals = useQuery(
-		trpc.deals.list.queryOptions({ stage, page, limit: 25 }, { retry: false }),
+		trpc.deals.list.queryOptions({ siteId, stage, page, limit: 25 }, { retry: false, enabled: Boolean(siteId) }),
 	);
 
 	const rows = deals.data?.items ?? [];
@@ -72,17 +76,17 @@ function DealsPage() {
 				<Total
 					label="Open pipeline"
 					data={totals.data?.open}
-					isPending={totals.isPending}
+					isPending={totals.isPending && !isEmpty}
 				/>
 				<Total
 					label="Won"
 					data={totals.data?.won}
-					isPending={totals.isPending}
+					isPending={totals.isPending && !isEmpty}
 				/>
 				<Total
 					label="Lost"
 					data={totals.data?.lost}
-					isPending={totals.isPending}
+					isPending={totals.isPending && !isEmpty}
 				/>
 			</section>
 
@@ -104,7 +108,7 @@ function DealsPage() {
 				/>
 			</Toolbar>
 
-			{deals.isPending ? (
+			{deals.isPending && !isEmpty ? (
 				<div className="flex flex-1 flex-col gap-px p-5">
 					{Array.from({ length: 8 }, (_, i) => (
 						<Skeleton key={i} className="h-10 w-full" />
@@ -262,6 +266,7 @@ function StagePicker({ dealId, stage }: { dealId: string; stage: Stage }) {
 
 function NewDealDialog() {
 	const trpc = useTRPC();
+	const { siteId } = useWorkspace();
 	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const [contactId, setContactId] = useState<string | null>(null);
@@ -270,8 +275,8 @@ function NewDealDialog() {
 
 	const contacts = useQuery(
 		trpc.contacts.list.queryOptions(
-			{ range: "all", limit: 100 },
-			{ retry: false },
+			{ siteId, range: "all", limit: 100 },
+			{ retry: false, enabled: Boolean(siteId) },
 		),
 	);
 
@@ -320,6 +325,7 @@ function NewDealDialog() {
 						e.preventDefault();
 						if (!contactId || !title.trim()) return;
 						create.mutate({
+							siteId,
 							contactId,
 							title: title.trim(),
 							value: Number(value) || 0,

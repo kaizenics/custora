@@ -20,6 +20,7 @@ import { type Range, RangePicker } from "@/components/range-picker";
 import { TableScroll } from "@/components/table-scroll";
 import { formatCurrency, formatNumber, formatRelative } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
+import { useWorkspace } from "@/lib/workspace";
 
 export const Route = createFileRoute("/_auth/contacts/")({
 	component: ContactsPage,
@@ -37,18 +38,19 @@ const STATUS_LABEL: Record<Status, string> = {
 
 function ContactsPage() {
 	const trpc = useTRPC();
+	const { siteId, isEmpty } = useWorkspace();
 	const [range, setRange] = useState<Range>("30d");
 	const [status, setStatus] = useState<Status | undefined>();
 	const [search, setSearch] = useState("");
 	const [page, setPage] = useState(0);
 
 	const counts = useQuery(
-		trpc.contacts.countsByStatus.queryOptions({ range }, { retry: false }),
+		trpc.contacts.countsByStatus.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const contacts = useQuery(
 		trpc.contacts.list.queryOptions(
-			{ range, status, search: search.trim() || undefined, page, limit: 25 },
-			{ retry: false },
+			{ siteId, range, status, search: search.trim() || undefined, page, limit: 25 },
+			{ retry: false, enabled: Boolean(siteId) },
 		),
 	);
 
@@ -94,7 +96,7 @@ function ContactsPage() {
 				</div>
 			</Toolbar>
 
-			{contacts.isPending ? (
+			{contacts.isPending && !isEmpty ? (
 				<div className="flex flex-1 flex-col gap-px p-5">
 					{Array.from({ length: 10 }, (_, i) => (
 						<Skeleton key={i} className="h-10 w-full" />

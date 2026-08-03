@@ -51,6 +51,7 @@ import { StackedAreaChart } from "@/components/stacked-area-chart";
 import { TableScroll } from "@/components/table-scroll";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
+import { useWorkspace } from "@/lib/workspace";
 
 export const Route = createFileRoute("/_auth/rules")({
 	component: RulesPage,
@@ -98,9 +99,12 @@ const MATCHER_LABEL = Object.fromEntries(
 
 function RulesPage() {
 	const trpc = useTRPC();
-	const rules = useQuery(trpc.rules.list.queryOptions({}, { retry: false }));
+	const { siteId, isEmpty } = useWorkspace();
+	const rules = useQuery(
+		trpc.rules.list.queryOptions({ siteId }, { retry: false, enabled: Boolean(siteId) }),
+	);
 	const series = useQuery(
-		trpc.rules.series.queryOptions({ range: "30d" }, { retry: false }),
+		trpc.rules.series.queryOptions({ siteId, range: "30d" }, { retry: false, enabled: Boolean(siteId) }),
 	);
 
 	return (
@@ -141,13 +145,9 @@ function RulesPage() {
 				</p>
 			</Toolbar>
 
-			{rules.isPending ? (
-				<div className="flex flex-1 flex-col gap-px p-5">
-					{Array.from({ length: 6 }, (_, i) => (
-						<Skeleton key={i} className="h-10 w-full" />
-					))}
-				</div>
-			) : rules.error ? (
+			{/* Before isPending: a disabled query stays pending, so with no site the
+			    skeleton would otherwise spin forever. */}
+			{isEmpty || rules.error ? (
 				<div className="flex flex-1 items-center justify-center p-6">
 					<Card className="w-full max-w-sm text-center">
 						<CardHeader>
@@ -160,6 +160,12 @@ function RulesPage() {
 							<Button render={<Link to="/sites" />}>Add a site</Button>
 						</CardContent>
 					</Card>
+				</div>
+			) : rules.isPending ? (
+				<div className="flex flex-1 flex-col gap-px p-5">
+					{Array.from({ length: 6 }, (_, i) => (
+						<Skeleton key={i} className="h-10 w-full" />
+					))}
 				</div>
 			) : rules.data?.length ? (
 				<TableScroll>
@@ -309,6 +315,7 @@ function RuleActions({
 
 function NewRuleDialog() {
 	const trpc = useTRPC();
+	const { siteId } = useWorkspace();
 	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const [name, setName] = useState("");
@@ -368,6 +375,7 @@ function NewRuleDialog() {
 						e.preventDefault();
 						if (!name.trim() || !pattern.trim() || selectorError) return;
 						create.mutate({
+							siteId,
 							name: name.trim(),
 							trigger: trigger as "click",
 							matcher: matcher as "selector",

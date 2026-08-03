@@ -29,6 +29,7 @@ import { MetricChart, StatTile } from "@/components/metric-chart";
 import { type Range, RangePicker } from "@/components/range-picker";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
+import { useWorkspace } from "@/lib/workspace";
 
 export const Route = createFileRoute("/_auth/overview")({
 	component: OverviewPage,
@@ -44,31 +45,33 @@ const METRIC_LABEL: Record<Metric, string> = {
 
 function OverviewPage() {
 	const trpc = useTRPC();
+	const { siteId, isEmpty } = useWorkspace();
 	const [range, setRange] = useState<Range>("30d");
 	const [metric, setMetric] = useState<Metric>("visitors");
 	const [model, setModel] = useState<"first" | "last">("last");
 
 	const summary = useQuery(
-		trpc.analytics.summary.queryOptions({ range }, { retry: false }),
+		trpc.analytics.summary.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const series = useQuery(
-		trpc.analytics.series.queryOptions({ range }, { retry: false }),
+		trpc.analytics.series.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const channels = useQuery(
-		trpc.analytics.channels.queryOptions({ range, model }, { retry: false }),
+		trpc.analytics.channels.queryOptions({ siteId, range, model }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const topPages = useQuery(
-		trpc.analytics.topPages.queryOptions({ range }, { retry: false }),
+		trpc.analytics.topPages.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const coverage = useQuery(
-		trpc.analytics.coverage.queryOptions({ range }, { retry: false }),
+		trpc.analytics.coverage.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const locations = useQuery(
-		trpc.analytics.topLocations.queryOptions({ range }, { retry: false }),
+		trpc.analytics.topLocations.queryOptions({ siteId, range }, { retry: false, enabled: Boolean(siteId) }),
 	);
 
-	// Every query fails the same way when no site exists yet, so one check covers it.
-	if (summary.error) {
+	// Site-scoped queries are held until a site exists, so "nothing to show" is a
+	// fact about the workspace rather than something a failed request reveals.
+	if (isEmpty || summary.error) {
 		return (
 			<>
 				<PageHeader title="Overview" />
