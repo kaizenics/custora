@@ -11,6 +11,8 @@ import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
+import { rangeSchema, rangeStart } from "../lib/range";
+import { zeroFillByDay } from "../lib/series";
 import { resolveSite } from "../lib/site";
 
 const patternSchema = z.string().min(1).max(500);
@@ -155,6 +157,63 @@ export const rulesRouter = router({
 			// Events already recorded under this name are deliberately kept — the
 			// rule is the recipe, not the data.
 			return removed;
+		}),
+
+	/**
+	 * Daily fires per rule, for the overview chart.
+	 *
+	 * Capped at the five busiest rules with the rest folded into "Other" — past
+	 * that the reader cannot tell the bands apart by colour anyway, and adding
+	 * more hues would make it worse rather than better.
+	 */
+	series: protectedProcedure
+		.input(z.object({ siteId: z.string().optional(), range: rangeSchema }))
+		.query(async ({ input }) => {
+			const site = await resolveSite(input.siteId);
+			const since = rangeStart(input.range);
+
+			const names = await db
+				.select({ name: eventRule.name })
+				.from(eventRule)
+				.where(eq(eventRule.siteId, site.id));
+			if (!names.length) return { series: [], names: [] as string[] };
+
+			const ruleNames = names.map((row) => row.name);
+
+			const rows = await db.all<{ day: string; type: string; total: number }>(sql`
+				SELECT
+					strftime('%Y-%m-%d', created_at / 1000, 'unixepoch') AS day,
+					name AS type,
+					COUNT(*) AS total
+				FROM event
+				WHERE site_id = ${site.id}
+				  AND created_at >= ${since}
+				  AND name IN (${sql.join(ruleNames.map((n) => sql`${n}`), sql`, `)})
+				GROUP BY day, name
+				ORDER BY day
+			`);
+
+			// Busiest first, so the cap keeps what the reader cares about.
+			const totals = new Map<string, number>();
+			for (const row of rows) {
+				totals.set(row.type, (totals.get(row.type) ?? 0) + Number(row.total));
+			}
+			const ranked = [...totals.entries()]
+				.sort((a, b) => b[1] - a[1])
+				.map(([name]) => name);
+			const top = ranked.slice(0, 5);
+			const rest = new Set(ranked.slice(5));
+
+			const folded = rows.map((row) => ({
+				...row,
+				type: rest.has(row.type) ? "Other" : row.type,
+			}));
+			const categories = rest.size ? [...top, "Other"] : top;
+
+			return {
+				series: zeroFillByDay(folded, since, categories),
+				names: categories,
+			};
 		}),
 
 	/** Distinct event names already seen, to spot rules duplicating existing tracking. */

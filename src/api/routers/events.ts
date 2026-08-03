@@ -1,9 +1,10 @@
 import { db } from "@/db";
 import { contact, event, visitSession } from "@/db/schema";
-import { and, count, desc, eq, gte, like, lt, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, like, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
+import { zeroFillByDay } from "../lib/series";
 import { rangeSchema, rangeStart } from "../lib/range";
 import { resolveSite } from "../lib/site";
 
@@ -82,6 +83,30 @@ export const eventsRouter = router({
 					? (items[items.length - 1]?.createdAt.getTime() ?? null)
 					: null,
 			};
+		}),
+
+	/**
+	 * Daily counts split by event type, zero-filled so the area chart has no
+	 * gaps. One grouped query rather than one per type.
+	 */
+	series: protectedProcedure
+		.input(z.object({ siteId: z.string().optional(), range: rangeSchema }))
+		.query(async ({ input }) => {
+			const site = await resolveSite(input.siteId);
+			const since = rangeStart(input.range);
+
+			const rows = await db.all<{ day: string; type: string; total: number }>(sql`
+				SELECT
+					strftime('%Y-%m-%d', created_at / 1000, 'unixepoch') AS day,
+					type,
+					COUNT(*) AS total
+				FROM event
+				WHERE site_id = ${site.id} AND created_at >= ${since}
+				GROUP BY day, type
+				ORDER BY day
+			`);
+
+			return zeroFillByDay(rows, since, EVENT_TYPES);
 		}),
 
 	/** Counts per type, used to label the filter chips without a second round trip. */
