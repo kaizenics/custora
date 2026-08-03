@@ -20,26 +20,22 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
 	Check,
 	Copy,
-	Plus,
 	RefreshCw,
-	Trash2,
-	SearchCheck,
 	ShieldCheck,
-	TriangleAlert,
+	Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app-sidebar";
+import { NewSiteDialog } from "@/components/new-site-dialog";
 import { getBaseUrl } from "@/lib/base-url";
 import {
 	INSTALL_STATUS,
@@ -63,35 +59,6 @@ function collectorOrigin() {
 	return getBaseUrl();
 }
 
-/** Mirrors the server's domain normalisation so the stale-result check lines up. */
-function normalizeDomain(value: string) {
-	return value
-		.trim()
-		.toLowerCase()
-		.replace(/^https?:\/\//, "")
-		.replace(/^www\./, "")
-		.replace(/\/.*$/, "")
-		.replace(/:\d+$/, "");
-}
-
-function Row({ tone, text }: { tone: "good" | "warn" | "bad"; text: string }) {
-	const Icon =
-		tone === "good" ? Check : tone === "warn" ? TriangleAlert : ShieldCheck;
-	return (
-		<div className="flex items-start gap-2">
-			<Icon
-				className={cn(
-					"mt-0.5 size-3.5 shrink-0",
-					tone === "bad" && "text-destructive",
-					tone === "warn" && "text-muted-foreground",
-				)}
-			/>
-			<p className={cn("text-[11px]", tone === "bad" && "text-destructive")}>
-				{text}
-			</p>
-		</div>
-	);
-}
 
 function snippetFor(writeKey: string) {
 	return `<script defer\n  src="${collectorOrigin()}/c/v1/custora.js"\n  data-key="${writeKey}"></script>`;
@@ -317,162 +284,6 @@ function CopyButton({ value, label }: { value: string; label: string }) {
 	);
 }
 
-function NewSiteDialog() {
-	const trpc = useTRPC();
-	const queryClient = useQueryClient();
-	const [open, setOpen] = useState(false);
-	const [name, setName] = useState("");
-	const [domain, setDomain] = useState("");
-
-	const checkDomain = useMutation(trpc.sites.checkDomain.mutationOptions());
-
-	const create = useMutation(
-		trpc.sites.create.mutationOptions({
-			onSuccess: () => {
-				queryClient.invalidateQueries({ queryKey: trpc.sites.pathKey() });
-				toast.success("Site added");
-				setOpen(false);
-				setName("");
-				setDomain("");
-				checkDomain.reset();
-			},
-			onError: (error) => toast.error(error.message),
-		}),
-	);
-
-	const probe = checkDomain.data;
-	// Re-checking is required after an edit — a stale result for a different
-	// domain is worse than no result at all.
-	const probeIsStale =
-		probe != null && probe.domain !== normalizeDomain(domain);
-
-	return (
-		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger render={<Button size="sm" />}>
-				<Plus data-icon="inline-start" />
-				Add site
-			</DialogTrigger>
-			<DialogContent>
-				<DialogHeader>
-					<DialogTitle>Add a site</DialogTitle>
-					<DialogDescription>
-						Every visitor, event, and contact is scoped to a site, so a second
-						brand stays cleanly separated.
-					</DialogDescription>
-				</DialogHeader>
-
-				<form
-					id="new-site"
-					className="flex flex-col gap-3"
-					onSubmit={(e) => {
-						e.preventDefault();
-						if (!name.trim() || !domain.trim()) return;
-						create.mutate({ name: name.trim(), domain: domain.trim() });
-					}}
-				>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="site-name">Name</Label>
-						<Input
-							id="site-name"
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							placeholder="Marketing site"
-							required
-						/>
-					</div>
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="site-domain">Domain</Label>
-						<div className="flex gap-2">
-							<Input
-								id="site-domain"
-								value={domain}
-								onChange={(e) => setDomain(e.target.value)}
-								placeholder="northgate.dev"
-								required
-							/>
-							<Button
-								type="button"
-								variant="outline"
-								disabled={!domain.trim() || checkDomain.isPending}
-								onClick={() => checkDomain.mutate({ domain: domain.trim() })}
-							>
-								<SearchCheck data-icon="inline-start" />
-								{checkDomain.isPending ? "Checking" : "Check"}
-							</Button>
-						</div>
-					</div>
-
-					{checkDomain.error ? (
-						<p className="text-[11px] text-destructive">
-							{checkDomain.error.message}
-						</p>
-					) : null}
-
-					{probe && !probeIsStale ? (
-						<div className="flex flex-col gap-2 border p-3">
-							{probe.alreadyTracked ? (
-								<Row
-									tone="bad"
-									text={`Already tracked as "${probe.existingSiteName}". Adding it again would split its visitors across two keys.`}
-								/>
-							) : (
-								<Row tone="good" text="Not tracked here yet." />
-							)}
-
-							{probe.reachable ? (
-								<Row
-									tone="good"
-									text={`Reachable — responded ${probe.httpStatus} at https://${probe.domain}/`}
-								/>
-							) : (
-								<Row
-									tone="warn"
-									text={`Could not fetch the site: ${probe.error}. You can still add it — the snippet may just not be deployed yet.`}
-								/>
-							)}
-
-							{probe.existingSnippetKey ? (
-								<Row
-									tone={probe.snippetMatchesExisting ? "good" : "warn"}
-									text={
-										probe.snippetMatchesExisting
-											? "A Custora snippet is already live on this page, using the existing site's key."
-											: "A Custora snippet is already on this page under a different key. Reuse that site instead of adding a second one, or rotate the key after adding."
-									}
-								/>
-							) : probe.reachable ? (
-								<Row
-									tone="warn"
-									text="No Custora snippet on the page yet. You will get one to paste after adding."
-								/>
-							) : null}
-						</div>
-					) : null}
-				</form>
-
-				<DialogFooter>
-					<DialogClose render={<Button variant="outline" />}>
-						Cancel
-					</DialogClose>
-					<Button
-						type="submit"
-						form="new-site"
-						disabled={
-							!name.trim() ||
-							!domain.trim() ||
-							create.isPending ||
-							// Hard block: the server rejects it anyway, so do not let the
-							// form pretend it might work.
-							Boolean(probe && !probeIsStale && probe.alreadyTracked)
-						}
-					>
-						{create.isPending ? "Adding" : "Add site"}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
-	);
-}
 
 /**
  * Deleting a site cascades to every visitor, session, event, touchpoint,
