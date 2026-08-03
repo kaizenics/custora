@@ -20,7 +20,7 @@
 		"test:snippet": "tsx src/scripts/snippet-detect-test.ts",
 		"test:tracker": "tsx src/scripts/tracker-rules-test.ts",
 		"test:workspace": "tsx src/scripts/workspace-test.ts",
-		"test:menu": "tsx src/scripts/menu-render-test.tsx"
+		"test:ui": "tsx src/scripts/ui-render-test.tsx"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.6.0",

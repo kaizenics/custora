@@ -1,12 +1,12 @@
 /**
- * Renders the dropdown menus with their content open.
+ * Renders the overlay components with their content open.
  *
  * Base UI enforces composition at runtime rather than in the types — a
  * GroupLabel outside a Group throws when the menu opens, which typecheck,
- * lint and build all pass straight over. The menus only build their content
+ * lint and build all pass straight over. Overlays only build their content
  * when open, so this opens them.
  *
- *   pnpm test:menu
+ *   pnpm test:ui
  */
 
 import { JSDOM } from "jsdom";
@@ -120,8 +120,7 @@ await renderOpen(
 			h(DropdownMenuItem, { key: "b" }, "Site B"),
 		),
 		h(DropdownMenuSeparator),
-		h(DropdownMenuItem, null, "Add site"),
-		h(DropdownMenuItem, null, "Manage sites"),
+		h(DropdownMenuItem, null, "New workspace"),
 	),
 );
 
@@ -137,6 +136,77 @@ const bare = await renderOpen(
 	),
 );
 void bare;
+
+console.log("\ndialog composition");
+
+const {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} = await import("@/components/ui/dialog");
+
+/**
+ * Controlled and triggerless, which is how the workspace switcher and the
+ * Install page open the add-site form: the trigger lives outside the dialog,
+ * so there is no DialogTrigger child to anchor it.
+ */
+async function renderDialog(name: string) {
+	const host = dom.window.document.createElement("div");
+	dom.window.document.body.appendChild(host);
+	const root = createRoot(host);
+
+	const logged: string[] = [];
+	const origError = console.error;
+	console.error = (...args: unknown[]) => logged.push(String(args[0]));
+
+	let thrown: unknown;
+	try {
+		await act(async () => {
+			root.render(
+				h(
+					Dialog,
+					{ open: true, onOpenChange: () => {} },
+					h(
+						DialogContent,
+						null,
+						h(
+							DialogHeader,
+							null,
+							h(DialogTitle, null, "Add a site"),
+							h(DialogDescription, null, "Scoped to one workspace."),
+						),
+					),
+				),
+			);
+		});
+	} catch (error) {
+		thrown = error;
+	} finally {
+		console.error = origError;
+	}
+
+	const composition = logged.find((line) => line.includes("Base UI"));
+	const bad = thrown ?? composition;
+	if (bad) {
+		failures++;
+		console.log(`FAIL  ${name}\n        ${String(bad).slice(0, 160)}`);
+	} else {
+		const titled = host.ownerDocument.body.textContent?.includes("Add a site");
+		if (!titled) {
+			failures++;
+			console.log(`FAIL  ${name}\n        rendered nothing`);
+		} else {
+			console.log(`  ok  ${name}`);
+		}
+	}
+
+	await act(async () => root.unmount());
+	host.remove();
+}
+
+await renderDialog("add-site dialog: controlled, no trigger");
 
 // The control is expected to fail, so one failure here is the correct result.
 const expected = 1;
