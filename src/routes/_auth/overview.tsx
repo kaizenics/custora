@@ -85,7 +85,7 @@ function OverviewPage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<Button render={<Link to="/sites" />}>Add a site</Button>
+							<Button render={<Link to="/install" />}>Add a site</Button>
 						</CardContent>
 					</Card>
 				</div>

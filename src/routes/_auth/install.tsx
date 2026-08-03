@@ -27,6 +27,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import {
 	Check,
 	Copy,
+	Plus,
 	RefreshCw,
 	ShieldCheck,
 	Trash2,
@@ -44,10 +45,11 @@ import {
 	type InstallStatus,
 } from "@/components/install-status";
 import { formatDate, formatNumber, formatRelative } from "@/lib/format";
+import { type WorkspaceSite, useWorkspace } from "@/lib/workspace";
 import { useTRPC } from "@/utils/trpc";
 
-export const Route = createFileRoute("/_auth/sites")({
-	component: SitesPage,
+export const Route = createFileRoute("/_auth/install")({
+	component: InstallPage,
 });
 
 /**
@@ -64,30 +66,25 @@ function snippetFor(writeKey: string) {
 	return `<script defer\n  src="${collectorOrigin()}/c/v1/custora.js"\n  data-key="${writeKey}"></script>`;
 }
 
-function SitesPage() {
-	const trpc = useTRPC();
-	const sites = useQuery(trpc.sites.list.queryOptions());
+/**
+ * One workspace is one site, so this shows the site of the workspace you are
+ * in rather than a list. A second site means a second workspace, which is what
+ * the switcher is for — there is deliberately no way to add one from here.
+ */
+function InstallPage() {
+	const { site, isPending, isEmpty } = useWorkspace();
+	const [addOpen, setAddOpen] = useState(false);
 
 	return (
 		<>
-			<PageHeader title="Sites" action={<NewSiteDialog />} />
+			<PageHeader title="Install" />
 
 			<div className="flex-1 overflow-y-auto">
-				{sites.isPending ? (
-					<div className="flex flex-col gap-4 p-5">
-						<Skeleton className="h-40 w-full" />
-					</div>
-				) : sites.data?.length ? (
-					<div className="flex flex-col gap-4 p-4">
-						{sites.data.map((site) => (
-							<SiteCard key={site.id} site={site} />
-						))}
-					</div>
-				) : (
+				{isEmpty ? (
 					<div className="flex h-full items-center justify-center p-6">
 						<Card className="w-full max-w-md text-center">
 							<CardHeader>
-								<CardTitle>No sites yet</CardTitle>
+								<CardTitle>No site yet</CardTitle>
 								<CardDescription>
 									Add the domain you want to track. You get a snippet to paste
 									before the closing &lt;/body&gt; tag, and attribution starts
@@ -95,9 +92,21 @@ function SitesPage() {
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="flex justify-center">
-								<NewSiteDialog />
+								<Button size="sm" onClick={() => setAddOpen(true)}>
+									<Plus data-icon="inline-start" />
+									Add site
+								</Button>
 							</CardContent>
 						</Card>
+						<NewSiteDialog open={addOpen} onOpenChange={setAddOpen} />
+					</div>
+				) : isPending || !site ? (
+					<div className="flex flex-col gap-4 p-5">
+						<Skeleton className="h-40 w-full" />
+					</div>
+				) : (
+					<div className="flex flex-col gap-4 p-4">
+						<SiteCard site={site} />
 					</div>
 				)}
 			</div>
@@ -105,20 +114,7 @@ function SitesPage() {
 	);
 }
 
-type SiteRow = {
-	id: string;
-	name: string;
-	domain: string;
-	writeKey: string;
-	/** Dates arrive as ISO strings — no superjson transformer on the tRPC link. */
-	createdAt: string;
-	lastCheckedAt: string | null;
-	lastCheckStatus: string | null;
-	eventCount: number;
-	visitorCount: number;
-};
-
-function SiteCard({ site }: { site: SiteRow }) {
+function SiteCard({ site }: { site: WorkspaceSite }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
 

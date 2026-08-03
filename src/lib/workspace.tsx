@@ -1,4 +1,6 @@
+import type { AppRouter } from "@/api/routers/index";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import {
 	createContext,
 	useCallback,
@@ -12,20 +14,20 @@ import { useTRPC } from "@/utils/trpc";
 
 const STORAGE_KEY = "custora.workspace";
 
-type Site = {
-	id: string;
-	name: string;
-	domain: string;
-	writeKey: string;
-	eventCount: number;
-	visitorCount: number;
-};
+/**
+ * Taken from the router rather than restated, so a column added to sites.list
+ * reaches the screens that read the workspace without a second edit here.
+ *
+ * Dates arrive as ISO strings — there is no transformer on the tRPC link.
+ */
+export type WorkspaceSite =
+	inferRouterOutputs<AppRouter>["sites"]["list"][number];
 
 type Workspace = {
 	/** Undefined until the site list has loaded, or when there are no sites. */
 	siteId: string | undefined;
-	site: Site | undefined;
-	sites: Site[];
+	site: WorkspaceSite | undefined;
+	sites: WorkspaceSite[];
 	isPending: boolean;
 	/**
 	 * No sites exist, as opposed to none loaded yet. Site-scoped queries are held

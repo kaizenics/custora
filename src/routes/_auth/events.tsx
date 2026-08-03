@@ -256,7 +256,7 @@ function EmptyEvents({ hasFilters }: { hasFilters: boolean }) {
 					<Button
 						className="mt-4"
 						variant="outline"
-						render={<Link to="/sites" />}
+						render={<Link to="/install" />}
 					>
 						Get the snippet
 					</Button>

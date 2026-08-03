@@ -18,7 +18,7 @@ import {
 	Check,
 	ChevronsUpDown,
 	CircleDollarSign,
-	Globe,
+	Code,
 	LogOut,
 	MousePointerClick,
 	Plus,
@@ -61,7 +61,10 @@ const SECTIONS: NavSection[] = [
 	},
 	{
 		label: "Setup",
-		items: [{ to: "/settings", label: "Settings", icon: Settings }],
+		items: [
+			{ to: "/install", label: "Installation", icon: Code },
+			{ to: "/settings", label: "Settings", icon: Settings },
+		],
 	},
 ];
 
@@ -220,11 +223,7 @@ function WorkspaceSwitcher({ live }: { live?: boolean }) {
 
 					<DropdownMenuItem onClick={() => setAddOpen(true)}>
 						<Plus className="size-3.5" />
-						Add site
-					</DropdownMenuItem>
-					<DropdownMenuItem render={<Link to="/sites" />}>
-						<Globe className="size-3.5" />
-						Manage sites
+						New workspace
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>

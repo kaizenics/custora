@@ -102,7 +102,7 @@ function SettingsPage() {
 										<Button
 											variant="ghost"
 											size="sm"
-											render={<Link to="/sites" />}
+											render={<Link to="/install" />}
 										>
 											Manage
 											<ExternalLink data-icon="inline-end" />
@@ -115,7 +115,7 @@ function SettingsPage() {
 								<p className="text-muted-foreground text-xs">
 									No sites connected yet.
 								</p>
-								<Button size="sm" render={<Link to="/sites" />}>
+								<Button size="sm" render={<Link to="/install" />}>
 									Add a site
 								</Button>
 							</div>
