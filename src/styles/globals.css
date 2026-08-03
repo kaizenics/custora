@@ -34,6 +34,23 @@
    * a categorical palette: adjacent steps are too close in hue to tell apart as
    * distinct series. If you ever plot multiple series, pick separated hues.
    */
+  /*
+   * Categorical slots, for charts where the series are the subject — event
+   * types, tracking rules — and the reader must tell them apart.
+   *
+   * Distinct from --chart-* below, which is a sequential ramp for magnitude and
+   * whose adjacent steps are deliberately too close in hue to carry identity.
+   * Validated for lightness band, chroma floor, colour-vision separation and
+   * contrast in both modes.
+   *
+   * Three of the light values fall under 3:1 against the surface, so a chart
+   * using them needs a legend or direct labels rather than colour alone.
+   */
+  --chart-cat-1: #2a78d6;
+  --chart-cat-2: #eb6834;
+  --chart-cat-3: #1baf7a;
+  --chart-cat-4: #eda100;
+  --chart-cat-5: #e87ba4;
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
@@ -70,6 +87,12 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
   /* Same ramp in dark — validated against the dark surface, not an auto-flip. */
+  /* The same hues stepped for the dark surface, not an automatic flip. */
+  --chart-cat-1: #3987e5;
+  --chart-cat-2: #d95926;
+  --chart-cat-3: #199e70;
+  --chart-cat-4: #c98500;
+  --chart-cat-5: #d55181;
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
   --chart-3: oklch(0.546 0.245 262.881);
@@ -99,6 +122,11 @@
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
+  --color-chart-cat-1: var(--chart-cat-1);
+  --color-chart-cat-2: var(--chart-cat-2);
+  --color-chart-cat-3: var(--chart-cat-3);
+  --color-chart-cat-4: var(--chart-cat-4);
+  --color-chart-cat-5: var(--chart-cat-5);
   --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
