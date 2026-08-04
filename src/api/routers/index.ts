@@ -3,6 +3,7 @@ import { analyticsRouter } from "./analytics";
 import { contactsRouter } from "./contacts";
 import { dealsRouter } from "./deals";
 import { eventsRouter } from "./events";
+import { invitesRouter } from "./invites";
 import { rulesRouter } from "./rules";
 import { sitesRouter } from "./sites";
 import { usersRouter } from "./users";
@@ -16,6 +17,7 @@ export const appRouter = router({
 	contacts: contactsRouter,
 	deals: dealsRouter,
 	users: usersRouter,
+	invites: invitesRouter,
 });
 
 export type AppRouter = typeof appRouter;
