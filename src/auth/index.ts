@@ -68,6 +68,40 @@ export function createAuth() {
 			enabled: true,
 			disableSignUp: !signUpEnabled(),
 		},
+		user: {
+			additionalFields: {
+				/**
+				 * input: false is the security half of this — without it, a signup
+				 * request could simply include role: "admin" in its JSON body and
+				 * Better Auth would write it.
+				 */
+				role: {
+					type: "string",
+					defaultValue: "member",
+					input: false,
+				},
+			},
+		},
+		databaseHooks: {
+			user: {
+				create: {
+					/**
+					 * The first account ever created becomes admin, because someone
+					 * has to be and there is no console to appoint them from. Every
+					 * later signup starts as member and is promoted from Settings.
+					 */
+					before: async (data) => {
+						const [existing] = await db
+							.select({ id: schema.user.id })
+							.from(schema.user)
+							.limit(1);
+						return {
+							data: { ...data, role: existing ? "member" : "admin" },
+						};
+					},
+				},
+			},
+		},
 		secret: env.BETTER_AUTH_SECRET,
 		baseURL: env.BETTER_AUTH_URL,
 		advanced: {
