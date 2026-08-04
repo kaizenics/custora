@@ -12,7 +12,7 @@ import { TRPCError } from "@trpc/server";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { protectedProcedure, router } from "../index";
+import { adminProcedure, protectedProcedure, router } from "../index";
 import { rangeSchema, rangeStart } from "../lib/range";
 import { zeroFillByDay } from "../lib/series";
 import { resolveSite } from "../lib/site";
@@ -77,7 +77,7 @@ export const rulesRouter = router({
 				.orderBy(desc(eventRule.createdAt));
 		}),
 
-	create: protectedProcedure
+	create: adminProcedure
 		.input(ruleInput.extend({ siteId: z.string().optional() }))
 		.mutation(async ({ input }) => {
 			const site = await resolveSite(input.siteId);
@@ -112,7 +112,7 @@ export const rulesRouter = router({
 			return created;
 		}),
 
-	update: protectedProcedure
+	update: adminProcedure
 		.input(ruleInput.partial().extend({ ruleId: z.string() }))
 		.mutation(async ({ input }) => {
 			const { ruleId, ...patch } = input;
@@ -132,7 +132,7 @@ export const rulesRouter = router({
 		}),
 
 	/** Disabling keeps the historical events but stops the rule matching. */
-	setEnabled: protectedProcedure
+	setEnabled: adminProcedure
 		.input(z.object({ ruleId: z.string(), enabled: z.boolean() }))
 		.mutation(async ({ input }) => {
 			const [updated] = await db
@@ -146,7 +146,7 @@ export const rulesRouter = router({
 			return updated;
 		}),
 
-	remove: protectedProcedure
+	remove: adminProcedure
 		.input(z.object({ ruleId: z.string() }))
 		.mutation(async ({ input }) => {
 			const [removed] = await db

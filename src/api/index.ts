@@ -23,3 +23,18 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 		},
 	});
 });
+
+/**
+ * Mutations that change what is tracked or who can see it: site management,
+ * rule management, roles. The role comes from the session Better Auth loaded,
+ * not from anything the request claims about itself.
+ */
+export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+	if (ctx.session.user.role !== "admin") {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Only an admin can do this.",
+		});
+	}
+	return next();
+});

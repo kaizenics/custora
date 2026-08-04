@@ -4,7 +4,7 @@ import { contact, deal, event, eventRule, site, visitor } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { count, desc, eq, max } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure, router } from "../index";
+import { adminProcedure, protectedProcedure, router } from "../index";
 import { invalidateSiteCache, resolveSite } from "../lib/site";
 import { checkInstallation, probeDomain } from "../lib/verify-install";
 
@@ -79,7 +79,7 @@ export const sitesRouter = router({
 	 * the site was removed and re-added — worth surfacing before creating a
 	 * second key that would split the data.
 	 */
-	checkDomain: protectedProcedure
+	checkDomain: adminProcedure
 		.input(z.object({ domain: domainSchema }))
 		.mutation(async ({ input }) => {
 			const [existing] = await db
@@ -135,7 +135,7 @@ export const sitesRouter = router({
 			return result;
 		}),
 
-	create: protectedProcedure
+	create: adminProcedure
 		.input(
 			z.object({
 				name: z.string().min(1).max(120),
@@ -170,7 +170,7 @@ export const sitesRouter = router({
 		}),
 
 	/** Invalidates the old snippet — the site stops reporting until it is updated. */
-	rotateKey: protectedProcedure
+	rotateKey: adminProcedure
 		.input(z.object({ siteId: z.string() }))
 		.mutation(async ({ input }) => {
 			const [updated] = await db
@@ -232,7 +232,7 @@ export const sitesRouter = router({
 	 * The domain has to be typed back. The check lives here rather than only in
 	 * the dialog, because a confirmation the client can skip is not one.
 	 */
-	remove: protectedProcedure
+	remove: adminProcedure
 		.input(z.object({ siteId: z.string(), confirmDomain: z.string() }))
 		.mutation(async ({ input }) => {
 			const [row] = await db

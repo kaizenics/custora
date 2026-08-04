@@ -5,6 +5,7 @@ import { dealsRouter } from "./deals";
 import { eventsRouter } from "./events";
 import { rulesRouter } from "./rules";
 import { sitesRouter } from "./sites";
+import { usersRouter } from "./users";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => "OK"),
@@ -14,6 +15,7 @@ export const appRouter = router({
 	rules: rulesRouter,
 	contacts: contactsRouter,
 	deals: dealsRouter,
+	users: usersRouter,
 });
 
 export type AppRouter = typeof appRouter;
