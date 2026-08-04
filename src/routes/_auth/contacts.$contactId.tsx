@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
 	DropdownMenu,
@@ -144,14 +144,13 @@ function ContactDetailPage() {
 					</DropdownMenu>
 				}
 			>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					render={<Link to="/contacts" />}
+				<Link
+					to="/contacts"
+					className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
 					aria-label="Back to contacts"
 				>
 					<ArrowLeft />
-				</Button>
+				</Link>
 			</PageHeader>
 
 			<div className="grid flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[1fr_320px]">

@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
 	Card,
 	CardAction,
@@ -85,7 +85,9 @@ function OverviewPage() {
 							</CardDescription>
 						</CardHeader>
 						<CardContent>
-							<Button render={<Link to="/install" />}>Add a site</Button>
+							<Link to="/install" className={buttonVariants()}>
+								Add a site
+							</Link>
 						</CardContent>
 					</Card>
 				</div>

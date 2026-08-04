@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -36,10 +36,13 @@ function TrackingPage() {
 									{site.domain} · {formatNumber(site.eventCount)} events
 								</p>
 							</div>
-							<Button variant="ghost" size="sm" render={<Link to="/install" />}>
+							<Link
+								to="/install"
+								className={buttonVariants({ variant: "ghost", size: "sm" })}
+							>
 								Manage
 								<ExternalLink data-icon="inline-end" />
-							</Button>
+							</Link>
 						</li>
 					))}
 				</ul>
@@ -48,9 +51,9 @@ function TrackingPage() {
 					<p className="text-muted-foreground text-xs">
 						No sites connected yet.
 					</p>
-					<Button size="sm" render={<Link to="/install" />}>
+					<Link to="/install" className={buttonVariants({ size: "sm" })}>
 						Add a site
-					</Button>
+					</Link>
 				</div>
 			)}
 		</SettingsSection>

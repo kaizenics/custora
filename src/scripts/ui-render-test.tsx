@@ -1,10 +1,10 @@
 /**
- * Renders the overlay components with their content open.
+ * Renders real components in jsdom and asserts on what comes out.
  *
- * Base UI enforces composition at runtime rather than in the types — a
- * GroupLabel outside a Group throws when the menu opens, which typecheck,
- * lint and build all pass straight over. Overlays only build their content
- * when open, so this opens them.
+ * Base UI enforces composition at runtime, not in the types: a GroupLabel
+ * outside a Group throws, a Button told to render an anchor complains. None of
+ * that reaches typecheck, lint or build, and overlay content is only built
+ * when open — so this opens things and looks.
  *
  *   pnpm test:ui
  */
@@ -47,6 +47,75 @@ const React = (await import("react")).default;
 const { createRoot } = await import("react-dom/client");
 const { act } = await import("react");
 
+const h = React.createElement;
+
+let failures = 0;
+
+function report(name: string, ok: boolean, detail?: string) {
+	if (!ok) failures++;
+	console.log(
+		`${ok ? "  ok" : "FAIL"}  ${name}` +
+			(ok || !detail ? "" : `\n        ${detail.slice(0, 160)}`),
+	);
+}
+
+/**
+ * Renders a tree and returns whatever Base UI objected to, if anything.
+ *
+ * Some violations throw through the error-boundary path and others only reach
+ * console.error, so both are captured — a complaint must not pass by being
+ * merely logged.
+ */
+async function capture(tree: React.ReactNode): Promise<{
+	complaint?: string;
+	host: HTMLElement;
+	/** Call once the DOM has been inspected — unmounting empties the host. */
+	done: () => Promise<void>;
+}> {
+	const host = dom.window.document.createElement("div");
+	dom.window.document.body.appendChild(host);
+	const root = createRoot(host);
+
+	const logged: string[] = [];
+	const origError = console.error;
+	console.error = (...args: unknown[]) => logged.push(String(args[0]));
+
+	let thrown: unknown;
+	try {
+		await act(async () => root.render(tree));
+	} catch (error) {
+		thrown = error;
+	} finally {
+		console.error = origError;
+	}
+
+	const complaint =
+		(thrown ? String(thrown) : undefined) ??
+		logged.find((line) => line.includes("Base UI"));
+
+	return {
+		complaint,
+		host,
+		done: async () => {
+			await act(async () => root.unmount());
+			host.remove();
+		},
+	};
+}
+
+/** A check is only meaningful if it can fail — so prove the failing shape does. */
+async function expectComplaint(name: string, tree: React.ReactNode) {
+	const { complaint, done } = await capture(tree);
+	report(
+		name,
+		Boolean(complaint),
+		"expected Base UI to object, but it rendered without complaint",
+	);
+	await done();
+}
+
+// ── menus ──────────────────────────────────────────────────────────────────
+
 const {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -57,85 +126,52 @@ const {
 	DropdownMenuTrigger,
 } = await import("@/components/ui/dropdown-menu");
 
-const h = React.createElement;
-
-let failures = 0;
-
-async function renderOpen(name: string, children: React.ReactNode) {
-	const host = dom.window.document.createElement("div");
-	dom.window.document.body.appendChild(host);
-	const root = createRoot(host);
-
-	// Base UI reports render-phase throws through the error boundary path, and
-	// React also logs them; capture both so a swallowed throw cannot pass.
-	const logged: string[] = [];
-	const origError = console.error;
-	console.error = (...args: unknown[]) => logged.push(String(args[0]));
-
-	let thrown: unknown;
-	try {
-		await act(async () => {
-			root.render(
-				h(
-					DropdownMenu,
-					{ open: true },
-					h(DropdownMenuTrigger, null, "open"),
-					h(DropdownMenuContent, null, children),
-				),
-			);
-		});
-	} catch (error) {
-		thrown = error;
-	} finally {
-		console.error = origError;
-	}
-
-	const composition = logged.find((line) => line.includes("Base UI"));
-	const bad = thrown ?? composition;
-	if (bad) {
-		failures++;
-		console.log(`FAIL  ${name}\n        ${String(bad).slice(0, 160)}`);
-	} else {
-		console.log(`  ok  ${name}`);
-	}
-
-	await act(async () => root.unmount());
-	host.remove();
-	return host;
-}
+const openMenu = (children: React.ReactNode) =>
+	h(
+		DropdownMenu,
+		{ open: true },
+		h(DropdownMenuTrigger, null, "open"),
+		h(DropdownMenuContent, null, children),
+	);
 
 console.log("\nmenu composition");
 
-// The shape the switcher actually uses.
-await renderOpen(
-	"workspace switcher: label inside a group",
-	h(
-		React.Fragment,
-		null,
+// The shape the workspace switcher actually uses.
+{
+	const { complaint, done } = await capture(
+		openMenu(
+			h(
+				React.Fragment,
+				null,
+				h(
+					DropdownMenuGroup,
+					null,
+					h(DropdownMenuLabel, null, "Workspaces"),
+					h(DropdownMenuItem, { key: "a" }, "Site A"),
+					h(DropdownMenuItem, { key: "b" }, "Site B"),
+				),
+				h(DropdownMenuSeparator),
+				h(DropdownMenuItem, null, "New workspace"),
+			),
+		),
+	);
+	report("workspace switcher: label inside a group", !complaint, complaint);
+	await done();
+}
+
+await expectComplaint(
+	"control: a bare label is rejected",
+	openMenu(
 		h(
-			DropdownMenuGroup,
+			React.Fragment,
 			null,
 			h(DropdownMenuLabel, null, "Workspaces"),
-			h(DropdownMenuItem, { key: "a" }, "Site A"),
-			h(DropdownMenuItem, { key: "b" }, "Site B"),
+			h(DropdownMenuItem, null, "Site A"),
 		),
-		h(DropdownMenuSeparator),
-		h(DropdownMenuItem, null, "New workspace"),
 	),
 );
 
-// The shape that produced the reported error, kept so the check is known to be
-// capable of failing rather than merely passing.
-const bare = await renderOpen(
-	"control: a bare label must fail",
-	h(
-		React.Fragment,
-		null,
-		h(DropdownMenuLabel, null, "Workspaces"),
-		h(DropdownMenuItem, null, "Site A"),
-	),
-);
-void bare;
+// ── dialogs ────────────────────────────────────────────────────────────────
 
 console.log("\ndialog composition");
 
@@ -152,61 +188,34 @@ const {
  * Install page open the add-site form: the trigger lives outside the dialog,
  * so there is no DialogTrigger child to anchor it.
  */
-async function renderDialog(name: string) {
-	const host = dom.window.document.createElement("div");
-	dom.window.document.body.appendChild(host);
-	const root = createRoot(host);
-
-	const logged: string[] = [];
-	const origError = console.error;
-	console.error = (...args: unknown[]) => logged.push(String(args[0]));
-
-	let thrown: unknown;
-	try {
-		await act(async () => {
-			root.render(
+{
+	const { complaint, done } = await capture(
+		h(
+			Dialog,
+			{ open: true, onOpenChange: () => {} },
+			h(
+				DialogContent,
+				null,
 				h(
-					Dialog,
-					{ open: true, onOpenChange: () => {} },
-					h(
-						DialogContent,
-						null,
-						h(
-							DialogHeader,
-							null,
-							h(DialogTitle, null, "Add a site"),
-							h(DialogDescription, null, "Scoped to one workspace."),
-						),
-					),
+					DialogHeader,
+					null,
+					h(DialogTitle, null, "Add a site"),
+					h(DialogDescription, null, "Scoped to one workspace."),
 				),
-			);
-		});
-	} catch (error) {
-		thrown = error;
-	} finally {
-		console.error = origError;
-	}
-
-	const composition = logged.find((line) => line.includes("Base UI"));
-	const bad = thrown ?? composition;
-	if (bad) {
-		failures++;
-		console.log(`FAIL  ${name}\n        ${String(bad).slice(0, 160)}`);
-	} else {
-		const titled = host.ownerDocument.body.textContent?.includes("Add a site");
-		if (!titled) {
-			failures++;
-			console.log(`FAIL  ${name}\n        rendered nothing`);
-		} else {
-			console.log(`  ok  ${name}`);
-		}
-	}
-
-	await act(async () => root.unmount());
-	host.remove();
+			),
+		),
+	);
+	// Portalled content lands on document.body rather than inside the host.
+	const rendered = dom.window.document.body.textContent?.includes("Add a site");
+	report(
+		"add-site dialog: controlled, no trigger",
+		!complaint && Boolean(rendered),
+		complaint ?? "rendered nothing",
+	);
+	await done();
 }
 
-await renderDialog("add-site dialog: controlled, no trigger");
+// ── syntax highlighting ────────────────────────────────────────────────────
 
 console.log("\nsyntax highlighting");
 
@@ -214,8 +223,8 @@ const { CodeBlock } = await import("@/components/code-block");
 
 /**
  * A language Prism does not have loaded still renders — as one undifferentiated
- * plain-text run. So checking that it "rendered" proves nothing; these assert
- * that specific constructs came out as the token colours they should be.
+ * plain-text run. So "it rendered" proves nothing; these assert that specific
+ * constructs came out as the token colours they should be.
  */
 async function renderCode(
 	name: string,
@@ -223,37 +232,21 @@ async function renderCode(
 	language: string,
 	expectations: Array<{ text: string; token: string }>,
 ) {
-	const host = dom.window.document.createElement("div");
-	dom.window.document.body.appendChild(host);
-	const root = createRoot(host);
-
-	await act(async () => {
-		root.render(h(CodeBlock, { code, language }));
-	});
-
+	const { host, done } = await capture(h(CodeBlock, { code, language }));
 	const spans = [...host.querySelectorAll("span")];
-	for (const { text, token } of expectations) {
-		const hit = spans.find((s) => s.textContent?.includes(text));
-		const colour = hit?.getAttribute("style") ?? "";
-		const want = `var(--code-${token})`;
-		if (!hit) {
-			failures++;
-			console.log(`FAIL  ${name}: "${text}" not found in output`);
-		} else if (!colour.includes(want)) {
-			failures++;
-			console.log(
-				`FAIL  ${name}: "${text}" should be ${token}\n        got style: ${colour || "(none)"}`,
-			);
-		} else {
-			console.log(`  ok  ${name}: "${text}" → ${token}`);
-		}
-	}
 
-	await act(async () => root.unmount());
-	host.remove();
+	for (const { text, token } of expectations) {
+		const hit = spans.find((span) => span.textContent?.includes(text));
+		const colour = hit?.getAttribute("style") ?? "";
+		report(
+			`${name}: "${text}" → ${token}`,
+			Boolean(hit) && colour.includes(`var(--code-${token})`),
+			hit ? `got style: ${colour || "(none)"}` : "not found in output",
+		);
+	}
+	await done();
 }
 
-// The two snippets the Install page actually renders.
 await renderCode(
 	"snippet (markup)",
 	'<script defer\n  src="http://localhost:3100/c/v1/custora.js"\n  data-key="ck_abc"></script>',
@@ -276,11 +269,42 @@ await renderCode(
 	],
 );
 
-// The control is expected to fail, so one failure here is the correct result.
-const expected = 1;
-console.log(
-	failures === expected
-		? "\nMenu composition is correct (the control failed as intended).\n"
-		: `\n${failures} failure(s), expected ${expected}.\n`,
+// ── links styled as buttons ────────────────────────────────────────────────
+
+console.log("\nlinks styled as buttons");
+
+const { Button, buttonVariants } = await import("@/components/ui/button");
+
+/**
+ * Navigation controls are anchors wearing button styles, not buttons. Base UI's
+ * Button assumes its render target is a native <button> and objects otherwise,
+ * and calling a link a button misreports it to assistive tech either way.
+ */
+{
+	const { complaint, host, done } = await capture(
+		h(
+			"a",
+			{ href: "/install", className: buttonVariants({ size: "sm" }) },
+			"Add a site",
+		),
+	);
+	report("anchor + buttonVariants renders clean", !complaint, complaint);
+	report(
+		"…and stays an anchor, not a button",
+		host.querySelector("a") !== null && host.querySelector("button") === null,
+		`markup: ${host.innerHTML.slice(0, 80)}`,
+	);
+	await done();
+}
+
+await expectComplaint(
+	"control: Button rendering an anchor is rejected",
+	h(Button, { render: h("a", { href: "/install" }) }, "Add a site"),
 );
-process.exit(failures === expected ? 0 : 1);
+
+console.log(
+	failures === 0
+		? "\nAll UI render checks passed.\n"
+		: `\n${failures} check(s) failed.\n`,
+);
+process.exit(failures === 0 ? 0 : 1);

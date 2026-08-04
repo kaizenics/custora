@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -242,13 +242,15 @@ function EmptyEvents({ hasFilters }: { hasFilters: boolean }) {
 						: "Install the snippet on your site and the stream fills up on the first pageview."}
 				</p>
 				{!hasFilters ? (
-					<Button
-						className="mt-4"
-						variant="outline"
-						render={<Link to="/install" />}
+					<Link
+						to="/install"
+						className={buttonVariants({
+							variant: "outline",
+							className: "mt-4",
+						})}
 					>
 						Get the snippet
-					</Button>
+					</Link>
 				) : null}
 			</div>
 		</div>
