@@ -41,13 +41,14 @@ import {
 } from "@/components/ui/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { MoreHorizontal, Plus } from "lucide-react";
-import { useState } from "react";
+import { ChevronRight, MoreHorizontal, Plus } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
 import { FilterSelect } from "@/components/filter-select";
 import { LocationCell } from "@/components/location-cell";
+import { cn } from "@/lib/utils";
 import { StackedAreaChart } from "@/components/stacked-area-chart";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
@@ -107,8 +108,25 @@ function RulesPage() {
 		trpc.rules.series.queryOptions({ siteId, range: "30d" }, { retry: false, enabled: Boolean(siteId) }),
 	);
 	const fires = useQuery(
-		trpc.rules.fires.queryOptions({ siteId }, { retry: false, enabled: Boolean(siteId) }),
+		trpc.rules.fires.queryOptions(
+			{ siteId, limit: 100 },
+			{ retry: false, enabled: Boolean(siteId) },
+		),
 	);
+
+	/** One expanded rule at a time — the point is to peek, not to compare. */
+	const [expanded, setExpanded] = useState<string | null>(null);
+
+	const firesByRule = useMemo(() => {
+		const grouped = new Map<string, NonNullable<typeof fires.data>>();
+		for (const fire of fires.data ?? []) {
+			if (!fire.name) continue;
+			const bucket = grouped.get(fire.name) ?? [];
+			bucket.push(fire);
+			grouped.set(fire.name, bucket);
+		}
+		return grouped;
+	}, [fires.data]);
 
 	return (
 		<>
@@ -185,51 +203,158 @@ function RulesPage() {
 							</TableRow>
 						</TableHeader>
 						<TableBody>
-							{rules.data.map((rule) => (
-								<TableRow key={rule.id}>
-									<TableCell className="pl-5 font-medium">{rule.name}</TableCell>
-									<TableCell>
-										<Badge variant="outline">
-											{TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
-										</Badge>
-									</TableCell>
-									<TableCell className="max-w-[280px]">
-										<p className="truncate font-mono text-[11px]">
-											{rule.pattern}
-										</p>
-										<p className="text-[11px] text-muted-foreground">
-											{MATCHER_LABEL[rule.matcher] ?? rule.matcher}
-										</p>
-									</TableCell>
-									<TableCell className="text-right tabular-nums">
-										{rule.fireCount > 0 ? (
-											formatNumber(rule.fireCount)
-										) : (
-											<span
-												className="text-muted-foreground"
-												title="This rule has never matched anything"
-											>
-												0
-											</span>
-										)}
-									</TableCell>
-									<TableCell>
-										<Badge variant={rule.enabled ? "default" : "outline"}>
-											{rule.enabled ? "Active" : "Paused"}
-										</Badge>
-									</TableCell>
-									<TableCell className="pr-5 text-right whitespace-nowrap text-muted-foreground">
-										<div className="flex items-center justify-end gap-1">
-											{formatRelative(rule.createdAt)}
-											<RuleActions
-												ruleId={rule.id}
-												name={rule.name}
-												enabled={rule.enabled}
-											/>
-										</div>
-									</TableCell>
-								</TableRow>
-							))}
+							{rules.data.map((rule) => {
+								const ruleFires = firesByRule.get(rule.name) ?? [];
+								const expandable = rule.fireCount > 0;
+								const isOpen = expanded === rule.id;
+								return (
+									<Fragment key={rule.id}>
+										<TableRow
+											className={expandable ? "cursor-pointer" : undefined}
+											onClick={
+												expandable
+													? () => setExpanded(isOpen ? null : rule.id)
+													: undefined
+											}
+										>
+											<TableCell className="pl-5 font-medium">
+												<div className="flex items-center gap-1.5">
+													<ChevronRight
+														className={cn(
+															"size-3.5 shrink-0 text-muted-foreground transition-transform",
+															!expandable && "invisible",
+															isOpen && "rotate-90",
+														)}
+													/>
+													{rule.name}
+												</div>
+											</TableCell>
+											<TableCell>
+												<Badge variant="outline">
+													{TRIGGER_LABEL[rule.trigger] ?? rule.trigger}
+												</Badge>
+											</TableCell>
+											<TableCell className="max-w-[280px]">
+												<p className="truncate font-mono text-[11px]">
+													{rule.pattern}
+												</p>
+												<p className="text-[11px] text-muted-foreground">
+													{MATCHER_LABEL[rule.matcher] ?? rule.matcher}
+												</p>
+											</TableCell>
+											<TableCell className="text-right tabular-nums">
+												{rule.fireCount > 0 ? (
+													formatNumber(rule.fireCount)
+												) : (
+													<span
+														className="text-muted-foreground"
+														title="This rule has never matched anything"
+													>
+														0
+													</span>
+												)}
+											</TableCell>
+											<TableCell>
+												<Badge variant={rule.enabled ? "default" : "outline"}>
+													{rule.enabled ? "Active" : "Paused"}
+												</Badge>
+											</TableCell>
+											<TableCell className="pr-5 text-right whitespace-nowrap text-muted-foreground">
+												{/* The menu must not toggle the row it sits in. */}
+												<div
+													className="flex items-center justify-end gap-1"
+													onClick={(e) => e.stopPropagation()}
+												>
+													{formatRelative(rule.createdAt)}
+													<RuleActions
+														ruleId={rule.id}
+														name={rule.name}
+														enabled={rule.enabled}
+													/>
+												</div>
+											</TableCell>
+										</TableRow>
+
+										{isOpen ? (
+											<TableRow className="hover:bg-transparent">
+												<TableCell colSpan={6} className="bg-muted/20 p-0">
+													{ruleFires.length ? (
+														<Table>
+															<TableHeader>
+																<TableRow className="hover:bg-transparent">
+																	<TableHead className="h-8 pl-10 text-[11px]">
+																		Person
+																	</TableHead>
+																	<TableHead className="h-8 text-[11px]">
+																		Path
+																	</TableHead>
+																	<TableHead className="h-8 text-[11px]">
+																		Device
+																	</TableHead>
+																	<TableHead className="h-8 text-[11px]">
+																		Location
+																	</TableHead>
+																	<TableHead className="h-8 pr-5 text-right text-[11px]">
+																		When
+																	</TableHead>
+																</TableRow>
+															</TableHeader>
+															<TableBody>
+																{ruleFires.map((fire) => (
+																	<TableRow
+																		key={fire.id}
+																		className="hover:bg-transparent"
+																	>
+																		<TableCell className="pl-10">
+																			{fire.contactId ? (
+																				<Link
+																					to="/contacts/$contactId"
+																					params={{ contactId: fire.contactId }}
+																					className="underline underline-offset-2 hover:text-foreground"
+																				>
+																					{fire.contactEmail ??
+																						fire.contactName ??
+																						"Known"}
+																				</Link>
+																			) : (
+																				<span className="text-muted-foreground">
+																					Anonymous
+																				</span>
+																			)}
+																		</TableCell>
+																		<TableCell className="max-w-[220px] truncate text-muted-foreground">
+																			{fire.path ?? "—"}
+																		</TableCell>
+																		<TableCell className="text-muted-foreground">
+																			{fire.device ?? "—"}
+																		</TableCell>
+																		<TableCell className="text-muted-foreground">
+																			<LocationCell
+																				country={fire.country}
+																				city={fire.city}
+																				ipAddress={fire.ipAddress}
+																			/>
+																		</TableCell>
+																		<TableCell className="pr-5 text-right text-muted-foreground">
+																			{formatRelative(fire.createdAt)}
+																		</TableCell>
+																	</TableRow>
+																))}
+															</TableBody>
+														</Table>
+													) : (
+														<p className="px-10 py-3 text-muted-foreground text-xs">
+															Fired {formatNumber(rule.fireCount)}{" "}
+															{rule.fireCount === 1 ? "time" : "times"}, but the
+															most recent 100 fires belong to other rules.
+														</p>
+													)}
+												</TableCell>
+											</TableRow>
+										) : null}
+									</Fragment>
+								);
+							})}
 						</TableBody>
 					</Table>
 				</div>
@@ -245,73 +370,6 @@ function RulesPage() {
 				</div>
 			)}
 
-			{fires.data?.length ? (
-				<div className="p-4">
-					<Card>
-						<CardHeader>
-							<CardTitle>Recent fires</CardTitle>
-							<CardDescription>
-								Each match with where the visitor was — the same provenance the
-								Events page shows.
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="p-0">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead className="pl-5">Rule</TableHead>
-										<TableHead>Person</TableHead>
-										<TableHead>Path</TableHead>
-										<TableHead>Device</TableHead>
-										<TableHead>Location</TableHead>
-										<TableHead className="pr-5 text-right">When</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{fires.data.map((fire) => (
-										<TableRow key={fire.id}>
-											<TableCell className="pl-5 font-medium">
-												{fire.name}
-											</TableCell>
-											<TableCell>
-												{fire.contactId ? (
-													<Link
-														to="/contacts/$contactId"
-														params={{ contactId: fire.contactId }}
-														className="underline underline-offset-2 hover:text-foreground"
-													>
-														{fire.contactEmail ?? fire.contactName ?? "Known"}
-													</Link>
-												) : (
-													<span className="text-muted-foreground">
-														Anonymous
-													</span>
-												)}
-											</TableCell>
-											<TableCell className="max-w-[220px] truncate text-muted-foreground">
-												{fire.path ?? "—"}
-											</TableCell>
-											<TableCell className="text-muted-foreground">
-												{fire.device ?? "—"}
-											</TableCell>
-											<TableCell className="text-muted-foreground">
-												<LocationCell
-													country={fire.country}
-													city={fire.city}
-													ipAddress={fire.ipAddress}
-												/>
-											</TableCell>
-											<TableCell className="pr-5 text-right text-muted-foreground">
-												{formatRelative(fire.createdAt)}
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</CardContent>
-					</Card>
-				</div>
-			) : null}
 			</div>
 
 			<div className="flex items-center justify-between gap-4 border-t px-5 py-2.5">
