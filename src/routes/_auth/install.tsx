@@ -39,6 +39,7 @@ import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app-sidebar";
 import { CodeBlock } from "@/components/code-block";
+import { useIsAdmin } from "@/lib/auth-client";
 import { NewSiteDialog } from "@/components/new-site-dialog";
 import { getBaseUrl } from "@/lib/base-url";
 import {
@@ -75,6 +76,7 @@ function snippetFor(writeKey: string) {
  * the switcher is for — there is deliberately no way to add one from here.
  */
 function InstallPage() {
+	const isAdminPage = useIsAdmin();
 	const { site, isPending, isEmpty } = useWorkspace();
 	const [addOpen, setAddOpen] = useState(false);
 
@@ -95,10 +97,16 @@ function InstallPage() {
 								</CardDescription>
 							</CardHeader>
 							<CardContent className="flex justify-center">
-								<Button size="sm" onClick={() => setAddOpen(true)}>
-									<Plus data-icon="inline-start" />
-									Add site
-								</Button>
+								{isAdminPage ? (
+									<Button size="sm" onClick={() => setAddOpen(true)}>
+										<Plus data-icon="inline-start" />
+										Add site
+									</Button>
+								) : (
+									<p className="text-muted-foreground text-xs">
+										An admin has to connect the first site.
+									</p>
+								)}
 							</CardContent>
 						</Card>
 						<NewSiteDialog open={addOpen} onOpenChange={setAddOpen} />
@@ -121,6 +129,7 @@ function InstallPage() {
 
 function SiteCard({ site }: { site: WorkspaceSite }) {
 	const trpc = useTRPC();
+	const isAdmin = useIsAdmin();
 	const queryClient = useQueryClient();
 
 	const rotate = useMutation(
@@ -189,16 +198,20 @@ function SiteCard({ site }: { site: WorkspaceSite }) {
 							<ShieldCheck data-icon="inline-start" />
 							{verify.isPending ? "Checking" : "Verify install"}
 						</Button>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={rotate.isPending}
-							onClick={() => rotate.mutate({ siteId: site.id })}
-						>
-							<RefreshCw data-icon="inline-start" />
-							Rotate key
-						</Button>
-						<DeleteSiteDialog siteId={site.id} name={site.name} domain={site.domain} />
+						{isAdmin ? (
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={rotate.isPending}
+								onClick={() => rotate.mutate({ siteId: site.id })}
+							>
+								<RefreshCw data-icon="inline-start" />
+								Rotate key
+							</Button>
+						) : null}
+						{isAdmin ? (
+							<DeleteSiteDialog siteId={site.id} name={site.name} domain={site.domain} />
+						) : null}
 					</div>
 				</CardAction>
 			</CardHeader>

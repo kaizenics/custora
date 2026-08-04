@@ -47,6 +47,7 @@ import { toast } from "sonner";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
 import { FilterSelect } from "@/components/filter-select";
+import { useIsAdmin } from "@/lib/auth-client";
 import { LocationCell } from "@/components/location-cell";
 import { cn } from "@/lib/utils";
 import { StackedAreaChart } from "@/components/stacked-area-chart";
@@ -100,6 +101,7 @@ const MATCHER_LABEL = Object.fromEntries(
 
 function RulesPage() {
 	const trpc = useTRPC();
+	const isAdmin = useIsAdmin();
 	const { siteId, isEmpty } = useWorkspace();
 	const rules = useQuery(
 		trpc.rules.list.queryOptions({ siteId }, { retry: false, enabled: Boolean(siteId) }),
@@ -130,7 +132,10 @@ function RulesPage() {
 
 	return (
 		<>
-			<PageHeader title="Click tracking" action={<NewRuleDialog />} />
+			<PageHeader
+				title="Click tracking"
+				action={isAdmin ? <NewRuleDialog /> : undefined}
+			/>
 
 			<div className="flex flex-1 flex-col overflow-y-auto">
 			{rules.data?.length ? (
@@ -266,11 +271,13 @@ function RulesPage() {
 													onClick={(e) => e.stopPropagation()}
 												>
 													{formatRelative(rule.createdAt)}
-													<RuleActions
+													{isAdmin ? (
+														<RuleActions
 														ruleId={rule.id}
 														name={rule.name}
-														enabled={rule.enabled}
-													/>
+															enabled={rule.enabled}
+														/>
+													) : null}
 												</div>
 											</TableCell>
 										</TableRow>

@@ -29,7 +29,7 @@ import {
 import { useState } from "react";
 
 import { NewSiteDialog } from "@/components/new-site-dialog";
-import { authClient } from "@/lib/auth-client";
+import { authClient, useIsAdmin } from "@/lib/auth-client";
 import { useWorkspace } from "@/lib/workspace";
 
 type NavItem = {
@@ -109,6 +109,7 @@ export function AppSidebar({ live }: { live?: boolean }) {
  * inside the open menu.
  */
 function WorkspaceSwitcher({ live }: { live?: boolean }) {
+	const isAdmin = useIsAdmin();
 	const { site, sites, siteId, isPending, switchTo } = useWorkspace();
 	const [addOpen, setAddOpen] = useState(false);
 
@@ -127,6 +128,18 @@ function WorkspaceSwitcher({ live }: { live?: boolean }) {
 	// Without a site there is nothing to switch between, so the control becomes
 	// the one action that resolves that.
 	if (!site) {
+		if (!isAdmin) {
+			return (
+				<div className="flex h-14 items-center gap-2 border-b px-4">
+					<span className="flex size-6 shrink-0 items-center justify-center border border-dashed text-muted-foreground">
+						<Plus className="size-3.5" />
+					</span>
+					<p className="text-[11px] text-muted-foreground">
+						No site yet — an admin has to add one.
+					</p>
+				</div>
+			);
+		}
 		return (
 			<div className="flex h-14 items-center border-b px-2">
 				<button
@@ -219,12 +232,15 @@ function WorkspaceSwitcher({ live }: { live?: boolean }) {
 						))}
 					</DropdownMenuGroup>
 
-					<DropdownMenuSeparator />
-
-					<DropdownMenuItem onClick={() => setAddOpen(true)}>
-						<Plus className="size-3.5" />
-						New workspace
-					</DropdownMenuItem>
+					{isAdmin ? (
+						<>
+							<DropdownMenuSeparator />
+							<DropdownMenuItem onClick={() => setAddOpen(true)}>
+								<Plus className="size-3.5" />
+								New workspace
+							</DropdownMenuItem>
+						</>
+					) : null}
 				</DropdownMenuContent>
 			</DropdownMenu>
 
