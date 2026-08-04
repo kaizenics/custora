@@ -4,6 +4,7 @@ import { analyticsRouter } from "./analytics";
 import { contactsRouter } from "./contacts";
 import { dealsRouter } from "./deals";
 import { eventsRouter } from "./events";
+import { integrationsRouter } from "./integrations";
 import { invitesRouter } from "./invites";
 import { rulesRouter } from "./rules";
 import { sitesRouter } from "./sites";
@@ -20,6 +21,7 @@ export const appRouter = router({
 	deals: dealsRouter,
 	users: usersRouter,
 	invites: invitesRouter,
+	integrations: integrationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

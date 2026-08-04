@@ -25,6 +25,7 @@ import {
 	Megaphone,
 	MousePointerClick,
 	Palette,
+	Plug,
 	Plus,
 	Radio,
 	Settings,
@@ -69,6 +70,7 @@ const SECTIONS: NavSection[] = [
 		label: "Setup",
 		items: [
 			{ to: "/install", label: "Installation", icon: Code },
+			{ to: "/integrations", label: "Integrations", icon: Plug },
 			{ to: "/settings", label: "Settings", icon: Settings },
 		],
 	},
