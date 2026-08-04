@@ -16,6 +16,7 @@ import { Search } from "lucide-react";
 import { useState } from "react";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
+import { LocationCell } from "@/components/location-cell";
 import { StackedAreaChart } from "@/components/stacked-area-chart";
 import {
 	Card,
@@ -190,23 +191,11 @@ function EventsPage() {
 										{row.device ?? "—"}
 									</TableCell>
 									<TableCell className="text-muted-foreground">
-										{row.country ? (
-											<>
-												<span>
-													{row.city ? `${row.city}, ${row.country}` : row.country}
-												</span>
-												{row.ipAddress ? (
-													<p
-														className="font-mono text-[11px]"
-														title="Truncated before storage — the host portion is never kept"
-													>
-														{row.ipAddress}
-													</p>
-												) : null}
-											</>
-										) : (
-											<span title="No geo source configured on the collector">—</span>
-										)}
+										<LocationCell
+											country={row.country}
+											city={row.city}
+											ipAddress={row.ipAddress}
+										/>
 									</TableCell>
 									<TableCell className="pr-5 text-right text-muted-foreground">
 										{formatRelative(row.createdAt)}

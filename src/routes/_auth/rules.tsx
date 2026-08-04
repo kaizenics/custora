@@ -47,8 +47,8 @@ import { toast } from "sonner";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
 import { FilterSelect } from "@/components/filter-select";
+import { LocationCell } from "@/components/location-cell";
 import { StackedAreaChart } from "@/components/stacked-area-chart";
-import { TableScroll } from "@/components/table-scroll";
 import { formatNumber, formatRelative } from "@/lib/format";
 import { useTRPC } from "@/utils/trpc";
 import { useWorkspace } from "@/lib/workspace";
@@ -106,11 +106,15 @@ function RulesPage() {
 	const series = useQuery(
 		trpc.rules.series.queryOptions({ siteId, range: "30d" }, { retry: false, enabled: Boolean(siteId) }),
 	);
+	const fires = useQuery(
+		trpc.rules.fires.queryOptions({ siteId }, { retry: false, enabled: Boolean(siteId) }),
+	);
 
 	return (
 		<>
 			<PageHeader title="Click tracking" action={<NewRuleDialog />} />
 
+			<div className="flex flex-1 flex-col overflow-y-auto">
 			{rules.data?.length ? (
 				<div className="border-b p-4">
 					<Card>
@@ -168,7 +172,7 @@ function RulesPage() {
 					))}
 				</div>
 			) : rules.data?.length ? (
-				<TableScroll>
+				<div className="border-b">
 					<Table>
 						<TableHeader className="sticky top-0 z-10 bg-background">
 							<TableRow>
@@ -228,7 +232,7 @@ function RulesPage() {
 							))}
 						</TableBody>
 					</Table>
-				</TableScroll>
+				</div>
 			) : (
 				<div className="flex flex-1 items-center justify-center p-6">
 					<div className="w-full max-w-sm text-center">
@@ -240,6 +244,75 @@ function RulesPage() {
 					</div>
 				</div>
 			)}
+
+			{fires.data?.length ? (
+				<div className="p-4">
+					<Card>
+						<CardHeader>
+							<CardTitle>Recent fires</CardTitle>
+							<CardDescription>
+								Each match with where the visitor was — the same provenance the
+								Events page shows.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="p-0">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="pl-5">Rule</TableHead>
+										<TableHead>Person</TableHead>
+										<TableHead>Path</TableHead>
+										<TableHead>Device</TableHead>
+										<TableHead>Location</TableHead>
+										<TableHead className="pr-5 text-right">When</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{fires.data.map((fire) => (
+										<TableRow key={fire.id}>
+											<TableCell className="pl-5 font-medium">
+												{fire.name}
+											</TableCell>
+											<TableCell>
+												{fire.contactId ? (
+													<Link
+														to="/contacts/$contactId"
+														params={{ contactId: fire.contactId }}
+														className="underline underline-offset-2 hover:text-foreground"
+													>
+														{fire.contactEmail ?? fire.contactName ?? "Known"}
+													</Link>
+												) : (
+													<span className="text-muted-foreground">
+														Anonymous
+													</span>
+												)}
+											</TableCell>
+											<TableCell className="max-w-[220px] truncate text-muted-foreground">
+												{fire.path ?? "—"}
+											</TableCell>
+											<TableCell className="text-muted-foreground">
+												{fire.device ?? "—"}
+											</TableCell>
+											<TableCell className="text-muted-foreground">
+												<LocationCell
+													country={fire.country}
+													city={fire.city}
+													ipAddress={fire.ipAddress}
+												/>
+											</TableCell>
+											<TableCell className="pr-5 text-right text-muted-foreground">
+												{formatRelative(fire.createdAt)}
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</CardContent>
+					</Card>
+				</div>
+			) : null}
+			</div>
 
 			<div className="flex items-center justify-between gap-4 border-t px-5 py-2.5">
 				<p className="text-muted-foreground text-xs">

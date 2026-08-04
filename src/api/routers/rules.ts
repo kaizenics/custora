@@ -3,8 +3,10 @@ import { createId } from "@/db/ids";
 import {
 	RULE_MATCHERS,
 	RULE_TRIGGERS,
+	contact,
 	event,
 	eventRule,
+	visitSession,
 } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, count, desc, eq, sql } from "drizzle-orm";
@@ -214,6 +216,54 @@ export const rulesRouter = router({
 				series: zeroFillByDay(folded, since, categories),
 				names: categories,
 			};
+		}),
+
+	/**
+	 * The latest individual fires with their session's provenance — device,
+	 * location, truncated address. The rules table says how often each rule
+	 * matches; this says who it matched, which is the question "did that
+	 * WhatsApp click come from a real visitor in Marbella or from a bot"
+	 * actually needs answered.
+	 */
+	fires: protectedProcedure
+		.input(
+			z.object({
+				siteId: z.string().optional(),
+				limit: z.number().min(1).max(100).default(25),
+			}),
+		)
+		.query(async ({ input }) => {
+			const site = await resolveSite(input.siteId);
+
+			return db
+				.select({
+					id: event.id,
+					name: event.name,
+					path: event.path,
+					createdAt: event.createdAt,
+					contactId: event.contactId,
+					contactEmail: contact.email,
+					contactName: contact.name,
+					device: visitSession.device,
+					country: visitSession.country,
+					city: visitSession.city,
+					ipAddress: visitSession.ipAddress,
+				})
+				.from(event)
+				// Fires are events wearing a rule's name. Names are unique per site
+				// (enforced on create), so this join cannot fan out.
+				.innerJoin(
+					eventRule,
+					and(
+						eq(eventRule.siteId, site.id),
+						eq(eventRule.name, event.name),
+					),
+				)
+				.leftJoin(contact, eq(contact.id, event.contactId))
+				.leftJoin(visitSession, eq(visitSession.id, event.sessionId))
+				.where(eq(event.siteId, site.id))
+				.orderBy(desc(event.createdAt))
+				.limit(input.limit);
 		}),
 
 	/** Distinct event names already seen, to spot rules duplicating existing tracking. */
