@@ -134,19 +134,26 @@ async function lookup(address: string): Promise<Location> {
 	const timer = setTimeout(() => controller.abort(), 1_500);
 
 	try {
-		const res = await fetch(
-			`https://ipapi.co/${encodeURIComponent(address)}/json/`,
-			{ signal: controller.signal, headers: { Accept: "application/json" } },
-		);
+		/**
+		 * ipwho.is, not ipapi.co: ipapi.co refuses server-side callers outright —
+		 * 429 for Node's user agent, a Cloudflare challenge for a spoofed one —
+		 * so every lookup returned empty while looking like a soft failure.
+		 * ipwho.is is keyless over HTTPS and answers non-browser clients.
+		 */
+		const res = await fetch(`https://ipwho.is/${encodeURIComponent(address)}`, {
+			signal: controller.signal,
+			headers: { Accept: "application/json" },
+		});
 		if (!res.ok) return EMPTY;
 
+		// Failures arrive as HTTP 200 with success:false (reserved ranges, bad input).
 		const body = (await res.json()) as {
+			success?: boolean;
 			country_code?: string;
 			region?: string;
 			city?: string;
-			error?: boolean;
 		};
-		if (body.error || !body.country_code) return EMPTY;
+		if (!body.success || !body.country_code) return EMPTY;
 
 		const location: Location = {
 			country: body.country_code.toUpperCase(),

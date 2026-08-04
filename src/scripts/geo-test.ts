@@ -8,6 +8,7 @@ import {
 	anonymiseIp,
 	clientAddress,
 	locationFromHeaders,
+	resolveLocation,
 	storableIp,
 } from "@/server/collector/geo";
 
@@ -66,6 +67,20 @@ check(
 	locationFromHeaders(h({ "cf-ipcountry": "XX" })).country === null,
 );
 check("no geo headers yields nothing", locationFromHeaders(h({})).country === null);
+
+// ── the external provider, opt-in because it needs the network ───────────
+// The blocked-provider failure mode is silent: lookup() swallows every error
+// and returns empty, so nothing offline can distinguish "provider fine" from
+// "provider rejecting us". Run with GEO_TEST_LIVE=1 to actually ask it.
+//
+//   GEO_TEST_LIVE=1 pnpm test:geo
+if (process.env.GEO_TEST_LIVE === "1") {
+	process.env.GEO_LOOKUP = "1";
+	// A stable, boring prefix: Google's, geolocated to the US for two decades.
+	const live = await resolveLocation(new Headers(), "66.102.6.0");
+	check("live lookup resolves a country", live.country === "US");
+	delete process.env.GEO_LOOKUP;
+}
 
 let failed = 0;
 for (const [label, ok] of checks) {
