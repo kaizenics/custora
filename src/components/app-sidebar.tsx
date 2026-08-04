@@ -11,17 +11,21 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
 	Activity,
+	ArrowLeft,
 	ChartNoAxesColumn,
 	Check,
 	ChevronsUpDown,
 	CircleDollarSign,
+	CircleUser,
 	Code,
 	LogOut,
 	MousePointerClick,
+	Palette,
 	Plus,
+	Radio,
 	Settings,
 	Users,
 } from "lucide-react";
@@ -68,37 +72,98 @@ const SECTIONS: NavSection[] = [
 	},
 ];
 
+const SETTINGS_ITEMS: NavItem[] = [
+	{ to: "/settings/appearance", label: "Appearance", icon: Palette },
+	{ to: "/settings/account", label: "Account", icon: CircleUser },
+	{ to: "/settings/tracking", label: "Tracking", icon: Radio },
+	{ to: "/settings/team", label: "Team", icon: Users },
+];
+
 export function AppSidebar({ live }: { live?: boolean }) {
+	const { pathname } = useLocation();
+	const inSettings = pathname.startsWith("/settings");
+
 	return (
 		<aside className="flex w-60 shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground">
 			<WorkspaceSwitcher live={live} />
 
-			<nav className="flex-1 overflow-y-auto p-2">
-				{SECTIONS.map((section) => (
-					<div key={section.label} className="mb-4">
-						<p className="px-2 pb-1 font-medium text-[11px] text-muted-foreground">
-							{section.label}
-						</p>
-						<ul className="flex flex-col gap-px">
-							{section.items.map((item) => (
-								<li key={item.to}>
-									<Link
-										to={item.to}
-										className="flex h-8 items-center gap-2 px-2 font-medium text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
-										activeProps={{ className: "bg-muted text-foreground" }}
-									>
-										<item.icon className="size-4 shrink-0" />
-										{item.label}
-									</Link>
-								</li>
-							))}
-						</ul>
-					</div>
-				))}
+			{/* key remounts the nav on mode change, which is what runs the
+			    slide-in. Settings arrives from the right (drilling in), the main
+			    menu from the left (coming back). */}
+			<nav className="flex-1 overflow-x-hidden overflow-y-auto p-2">
+				{inSettings ? (
+					<SettingsNav key="settings" />
+				) : (
+					<MainNav key="main" />
+				)}
 			</nav>
 
 			<SidebarUser />
 		</aside>
+	);
+}
+
+function MainNav() {
+	return (
+		<div className="fade-in slide-in-from-left-4 animate-in duration-200">
+			{SECTIONS.map((section) => (
+				<div key={section.label} className="mb-4">
+					<p className="px-2 pb-1 font-medium text-[11px] text-muted-foreground">
+						{section.label}
+					</p>
+					<ul className="flex flex-col gap-px">
+						{section.items.map((item) => (
+							<li key={item.to}>
+								<NavLink item={item} />
+							</li>
+						))}
+					</ul>
+				</div>
+			))}
+		</div>
+	);
+}
+
+function SettingsNav() {
+	const isAdmin = useIsAdmin();
+	const items = SETTINGS_ITEMS.filter(
+		(item) => item.to !== "/settings/team" || isAdmin,
+	);
+
+	return (
+		<div className="fade-in slide-in-from-right-4 animate-in duration-200">
+			<Link
+				to="/overview"
+				className="mb-3 flex h-8 items-center gap-2 px-2 font-medium text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
+			>
+				<ArrowLeft className="size-4 shrink-0" />
+				Back
+			</Link>
+
+			<p className="px-2 pb-1 font-medium text-[11px] text-muted-foreground">
+				Settings
+			</p>
+			<ul className="flex flex-col gap-px">
+				{items.map((item) => (
+					<li key={item.to}>
+						<NavLink item={item} />
+					</li>
+				))}
+			</ul>
+		</div>
+	);
+}
+
+function NavLink({ item }: { item: NavItem }) {
+	return (
+		<Link
+			to={item.to}
+			className="flex h-8 items-center gap-2 px-2 font-medium text-muted-foreground text-xs transition-colors hover:bg-muted hover:text-foreground"
+			activeProps={{ className: "bg-muted text-foreground" }}
+		>
+			<item.icon className="size-4 shrink-0" />
+			{item.label}
+		</Link>
 	);
 }
 
