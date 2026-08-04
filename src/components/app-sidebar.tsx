@@ -22,6 +22,7 @@ import {
 	CircleUser,
 	Code,
 	LogOut,
+	Megaphone,
 	MousePointerClick,
 	Palette,
 	Plus,
@@ -54,6 +55,7 @@ const SECTIONS: NavSection[] = [
 			{ to: "/overview", label: "Overview", icon: ChartNoAxesColumn },
 			{ to: "/events", label: "Events", icon: Activity },
 			{ to: "/rules", label: "Click tracking", icon: MousePointerClick },
+			{ to: "/ads", label: "Ad spend", icon: Megaphone },
 		],
 	},
 	{

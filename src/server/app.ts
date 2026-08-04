@@ -8,6 +8,7 @@ import { createContext } from "@/api/context";
 import { appRouter } from "@/api/routers/index";
 import { db } from "@/db";
 import { auth, signUpEnabled } from "@/auth";
+import { adsOauth } from "./ads-oauth";
 
 import { collector } from "./collector";
 import { subscribe } from "./live-bus";
@@ -40,6 +41,7 @@ api.use(
 );
 
 api.route("/c", collector);
+api.route("/", adsOauth);
 
 /**
  * Pushes a ping whenever the collector records something, so the dashboard can

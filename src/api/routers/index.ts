@@ -1,4 +1,5 @@
 import { publicProcedure, router } from "../index";
+import { adsRouter } from "./ads";
 import { analyticsRouter } from "./analytics";
 import { contactsRouter } from "./contacts";
 import { dealsRouter } from "./deals";
@@ -12,6 +13,7 @@ export const appRouter = router({
 	healthCheck: publicProcedure.query(() => "OK"),
 	sites: sitesRouter,
 	analytics: analyticsRouter,
+	ads: adsRouter,
 	events: eventsRouter,
 	rules: rulesRouter,
 	contacts: contactsRouter,

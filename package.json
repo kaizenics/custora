@@ -20,7 +20,9 @@
 		"test:snippet": "tsx src/scripts/snippet-detect-test.ts",
 		"test:tracker": "tsx src/scripts/tracker-rules-test.ts",
 		"test:workspace": "tsx src/scripts/workspace-test.ts",
-		"test:ui": "tsx src/scripts/ui-render-test.tsx"
+		"test:ui": "tsx src/scripts/ui-render-test.tsx",
+		"test:ads": "tsx src/scripts/ads-csv-test.ts",
+		"test:gads": "tsx src/scripts/google-ads-test.ts"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.6.0",
