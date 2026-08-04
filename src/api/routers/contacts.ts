@@ -25,6 +25,11 @@ import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
 import { rangeSchema, rangeStart } from "../lib/range";
+import {
+	normalizeEmail,
+	normalizePhone,
+	sha256,
+} from "@/server/collector/util";
 import { resolveSite } from "../lib/site";
 
 export const contactsRouter = router({
@@ -223,36 +228,98 @@ export const contactsRouter = router({
 			return updated;
 		}),
 
+	/**
+	 * Adds a contact by hand — someone who phoned in, or a customer who predates
+	 * the tracking.
+	 *
+	 * Email or phone, at least one. Requiring email would be wrong for a business
+	 * whose leads arrive as calls: you know the number and often nothing else.
+	 *
+	 * Both are normalised and hashed with the collector's own helpers rather than
+	 * a local copy, because these hashes are the keys identity stitching matches
+	 * on. A different normalisation here would create a contact that can never be
+	 * joined to the visitor who later submits a form with the same details.
+	 */
 	create: protectedProcedure
 		.input(
 			z.object({
 				siteId: z.string().optional(),
-				email: z.email(),
+				email: z.email().optional().or(z.literal("")),
+				phone: z.string().max(40).optional(),
 				name: z.string().max(200).optional(),
 				company: z.string().max(200).optional(),
+				status: z.enum(CONTACT_STATUSES).default("lead"),
 			}),
 		)
 		.mutation(async ({ input }) => {
 			const site = await resolveSite(input.siteId);
-			const normalized = input.email.trim().toLowerCase();
-			const bytes = new TextEncoder().encode(normalized);
-			const digest = await crypto.subtle.digest("SHA-256", bytes);
-			const emailHash = Array.from(new Uint8Array(digest), (b) =>
-				b.toString(16).padStart(2, "0"),
-			).join("");
+
+			/**
+			 * Checked here rather than as a zod refinement: a schema failure is
+			 * serialised as the raw issues array, which reaches the user as a JSON
+			 * blob in a toast. This is a rule worth stating in a sentence.
+			 */
+			if (!input.email?.trim() && !input.phone?.trim()) {
+				throw new TRPCError({
+					code: "BAD_REQUEST",
+					message: "Enter an email address or a phone number.",
+				});
+			}
+
+			const email = input.email?.trim() ? normalizeEmail(input.email) : null;
+			const phone = input.phone?.trim() ? normalizePhone(input.phone) : null;
+			const emailHash = email ? await sha256(email) : null;
+			const phoneHash = phone ? await sha256(phone) : null;
+
+			/**
+			 * Checked rather than left to the unique index: the constraint fires as
+			 * an opaque SQLITE_CONSTRAINT, and the useful answer is which existing
+			 * contact this is, so the caller can open it instead of guessing.
+			 */
+			const clauses = [];
+			if (emailHash) clauses.push(eq(contact.emailHash, emailHash));
+			if (phoneHash) clauses.push(eq(contact.phoneHash, phoneHash));
+
+			const [existing] = await db
+				.select({ id: contact.id, email: contact.email, phone: contact.phone })
+				.from(contact)
+				.where(
+					and(
+						eq(contact.siteId, site.id),
+						clauses.length > 1 ? or(...clauses) : clauses[0],
+					),
+				)
+				.limit(1);
+
+			if (existing) {
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: `${existing.email ?? existing.phone} is already a contact here. Open it rather than adding a second record — two records for one person split their history.`,
+					cause: existing.id,
+				});
+			}
 
 			const [created] = await db
 				.insert(contact)
 				.values({
 					id: createId("con"),
 					siteId: site.id,
-					email: normalized,
+					email,
 					emailHash,
-					name: input.name ?? null,
-					company: input.company ?? null,
-					status: "lead",
+					phone,
+					phoneHash,
+					name: input.name?.trim() || null,
+					company: input.company?.trim() || null,
+					status: input.status,
 				})
 				.returning();
+
+			if (!created) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Could not create the contact.",
+				});
+			}
 			return created;
 		}),
 });

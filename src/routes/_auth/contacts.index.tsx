@@ -1,5 +1,17 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogClose,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -9,9 +21,10 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
+import { toast } from "sonner";
 import { useState } from "react";
 
 import { PageHeader, TableFooterBar, Toolbar } from "@/components/app-sidebar";
@@ -60,7 +73,12 @@ function ContactsPage() {
 		<>
 			<PageHeader
 				title="Contacts"
-				action={<RangePicker value={range} onChange={setRange} />}
+				action={
+					<div className="flex items-center gap-2">
+						<RangePicker value={range} onChange={setRange} />
+						<NewContactDialog siteId={siteId} />
+					</div>
+				}
 			/>
 
 			<Toolbar>
@@ -195,5 +213,156 @@ function ContactsPage() {
 				onPageChange={setPage}
 			/>
 		</>
+	);
+}
+
+/**
+ * Adds a contact by hand — someone who phoned in, or a customer from before the
+ * tracking existed.
+ *
+ * Email or phone, either one. A business whose leads arrive as calls knows the
+ * number and often nothing else, so demanding an address would make the form
+ * unusable for the most common case.
+ */
+function NewContactDialog({ siteId }: { siteId?: string }) {
+	const trpc = useTRPC();
+	const queryClient = useQueryClient();
+	const [open, setOpen] = useState(false);
+	const [email, setEmail] = useState("");
+	const [phone, setPhone] = useState("");
+	const [name, setName] = useState("");
+	const [company, setCompany] = useState("");
+	const [status, setStatus] = useState<string>("lead");
+
+	const create = useMutation(
+		trpc.contacts.create.mutationOptions({
+			onSuccess: (contact) => {
+				queryClient.invalidateQueries({ queryKey: trpc.contacts.pathKey() });
+				queryClient.invalidateQueries({ queryKey: trpc.analytics.pathKey() });
+				toast.success(`${contact.name ?? contact.email ?? contact.phone} added.`);
+				setOpen(false);
+				setEmail("");
+				setPhone("");
+				setName("");
+				setCompany("");
+				setStatus("lead");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	// Mirrors the server's rule, so the button explains itself before a round trip.
+	const ready = Boolean(email.trim() || phone.trim());
+
+	return (
+		<Dialog open={open} onOpenChange={setOpen}>
+			<DialogTrigger render={<Button size="sm" />}>
+				<Plus data-icon="inline-start" />
+				New contact
+			</DialogTrigger>
+			<DialogContent>
+				<DialogHeader>
+					<DialogTitle>Add a contact</DialogTitle>
+					<DialogDescription>
+						Email or phone — whichever you have. If this person later submits a
+						form with the same details, their browsing history is stitched onto
+						this record automatically.
+					</DialogDescription>
+				</DialogHeader>
+
+				<form
+					id="new-contact"
+					className="flex flex-col gap-3"
+					onSubmit={(e) => {
+						e.preventDefault();
+						if (!ready) return;
+						create.mutate({
+							siteId,
+							email: email.trim() || undefined,
+							phone: phone.trim() || undefined,
+							name: name.trim() || undefined,
+							company: company.trim() || undefined,
+							status: status as "lead" | "qualified" | "customer" | "churned",
+						});
+					}}
+				>
+					<div className="grid grid-cols-2 gap-3">
+						<div className="flex flex-col gap-2">
+							<Label htmlFor="contact-email">Email</Label>
+							<Input
+								id="contact-email"
+								type="email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								placeholder="sam@example.com"
+								autoComplete="off"
+							/>
+						</div>
+						<div className="flex flex-col gap-2">
+							<Label htmlFor="contact-phone">Phone</Label>
+							<Input
+								id="contact-phone"
+								type="tel"
+								value={phone}
+								onChange={(e) => setPhone(e.target.value)}
+								placeholder="+34 600 000 000"
+								autoComplete="off"
+							/>
+						</div>
+					</div>
+
+					{!ready ? (
+						<p className="text-[11px] text-muted-foreground">
+							Enter at least one of the two.
+						</p>
+					) : null}
+
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="contact-name">Name</Label>
+						<Input
+							id="contact-name"
+							value={name}
+							onChange={(e) => setName(e.target.value)}
+							placeholder="Sam Okafor"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="contact-company">Company</Label>
+						<Input
+							id="contact-company"
+							value={company}
+							onChange={(e) => setCompany(e.target.value)}
+							placeholder="Optional"
+						/>
+					</div>
+
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="contact-status">Status</Label>
+						<FilterSelect
+							id="contact-status"
+							label="Status"
+							value={status}
+							onChange={(next) => setStatus(next ?? "lead")}
+							options={STATUSES.map((option) => ({
+								label: STATUS_LABEL[option],
+								value: option,
+							}))}
+						/>
+					</div>
+				</form>
+
+				<DialogFooter>
+					<DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+					<Button
+						type="submit"
+						form="new-contact"
+						disabled={!ready || create.isPending}
+					>
+						{create.isPending ? "Adding" : "Add contact"}
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
 	);
 }
