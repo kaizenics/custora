@@ -23,6 +23,13 @@ export const site = sqliteTable(
 		domain: text("domain").notNull(),
 		/** Public key embedded in the snippet. Safe to expose; scoped to ingest only. */
 		writeKey: text("write_key").notNull().unique(),
+		/**
+		 * Secret for pushing ad spend in. Distinct from writeKey, which is embedded
+		 * in the page and therefore public — anything accepting that key would let
+		 * a stranger write spend figures into the reports. Null until first asked
+		 * for, so existing sites do not carry a credential nobody uses.
+		 */
+		spendKey: text("spend_key").unique(),
 		/** Result of the last installation check. Null until one has been run. */
 		lastCheckedAt: integer("last_checked_at", { mode: "timestamp_ms" }),
 		lastCheckStatus: text("last_check_status"),

@@ -35,12 +35,16 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
+import { CodeBlock } from "@/components/code-block";
+import { CopyButton } from "@/components/copy-button";
 import { TableScroll } from "@/components/table-scroll";
 import { RangePicker } from "@/components/range-picker";
 import { StackedAreaChart } from "@/components/stacked-area-chart";
 import { useIsAdmin } from "@/lib/auth-client";
 import { formatCurrency, formatDate, formatNumber, formatRelative } from "@/lib/format";
 import type { Range } from "@/api/lib/range";
+import { googleAdsScript } from "@/lib/google-ads-script";
+import { getBaseUrl } from "@/lib/base-url";
 import { useWorkspace } from "@/lib/workspace";
 import { useTRPC } from "@/utils/trpc";
 
@@ -147,6 +151,7 @@ function AdsPage() {
 				) : null}
 
 				{isAdmin ? <GoogleConnection siteId={siteId} /> : null}
+				{isAdmin ? <ScriptPush siteId={siteId} /> : null}
 
 				<div className="border-b p-4">
 					<Card>
@@ -639,6 +644,120 @@ function GoogleConnection({ siteId }: { siteId?: string }) {
 							</a>
 						)}
 					</div>
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
+
+/**
+ * The no-approval path: a script pasted into Google Ads that pushes spend here
+ * daily. Shown alongside the OAuth connection because for most people it is the
+ * one that works today — the API route waits on Google's review.
+ */
+function ScriptPush({ siteId }: { siteId?: string }) {
+	const trpc = useTRPC();
+	const [key, setKey] = useState<string | null>(null);
+
+	const reveal = useMutation(
+		trpc.ads.spendKey.mutationOptions({
+			onSuccess: (result) => setKey(result.spendKey),
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	const rotate = useMutation(
+		trpc.ads.rotateSpendKey.mutationOptions({
+			onSuccess: (result) => {
+				setKey(result.spendKey);
+				toast.success("Key rotated. Update the script in Google Ads — the old one stops working now.");
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	const endpoint = new URL("/api/spend/ingest", getBaseUrl()).toString();
+
+	return (
+		<div className="border-b p-4">
+			<Card>
+				<CardHeader>
+					<CardTitle>Push from Google Ads (no developer token)</CardTitle>
+					<CardDescription>
+						A script that runs inside your own Google Ads account and sends
+						spend here every day. No manager account, no API review — this
+						works immediately.
+					</CardDescription>
+				</CardHeader>
+
+				<CardContent className="flex flex-col gap-4">
+					{!key ? (
+						<div>
+							<Button
+								size="sm"
+								disabled={reveal.isPending}
+								onClick={() => reveal.mutate({ siteId })}
+							>
+								{reveal.isPending ? "Preparing" : "Generate the script"}
+							</Button>
+							<p className="mt-2 text-[11px] text-muted-foreground">
+								Creates a secret key for this workspace and builds the script
+								around it. Different from the tracking snippet's key, which is
+								public.
+							</p>
+						</div>
+					) : (
+						<>
+							<ol className="flex flex-col gap-2 text-xs text-muted-foreground">
+								<li>
+									<span className="font-medium text-foreground">1.</span> In
+									Google Ads: <span className="font-medium text-foreground">Tools → Bulk actions → Scripts</span>,
+									then <span className="font-medium text-foreground">+</span>.
+								</li>
+								<li>
+									<span className="font-medium text-foreground">2.</span> Replace
+									everything in the editor with the script below, then Save.
+								</li>
+								<li>
+									<span className="font-medium text-foreground">3.</span> Run it
+									once — Google asks you to authorise it the first time.
+								</li>
+								<li>
+									<span className="font-medium text-foreground">4.</span> Set its
+									frequency to <span className="font-medium text-foreground">Daily</span>.
+									Spend appears here after the first run.
+								</li>
+							</ol>
+
+							<CodeBlock
+								language="javascript"
+								title="Google Ads script"
+								action={
+									<CopyButton
+										value={googleAdsScript({ endpoint, spendKey: key })}
+										label="Copy script"
+									/>
+								}
+								code={googleAdsScript({ endpoint, spendKey: key })}
+							/>
+
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={rotate.isPending}
+									onClick={() => rotate.mutate({ siteId })}
+								>
+									<RefreshCw data-icon="inline-start" />
+									Rotate key
+								</Button>
+								<p className="text-[11px] text-muted-foreground">
+									The key is embedded in the script above — treat it like a
+									password. Rotating breaks any script still using the old one.
+								</p>
+							</div>
+						</>
+					)}
 				</CardContent>
 			</Card>
 		</div>

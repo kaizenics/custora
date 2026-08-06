@@ -44,6 +44,13 @@ export function createId(prefix: IdPrefix, length = 16): string {
  * Public ingest key. Unbiased hex — this one is guessable-resistance sensitive,
  * unlike the display ids above.
  */
+/** Secret ingest key for ad spend. Same unbiased hex, different prefix. */
+export function createSpendKey(): string {
+	const bytes = crypto.getRandomValues(new Uint8Array(24));
+	const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+	return `sk_${hex}`;
+}
+
 export function createWriteKey(): string {
 	const bytes = crypto.getRandomValues(new Uint8Array(24));
 	const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(

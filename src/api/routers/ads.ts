@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { createId } from "@/db/ids";
-import { adAccount, adSpend } from "@/db/schema";
+import { createId, createSpendKey } from "@/db/ids";
+import { adAccount, adSpend, site } from "@/db/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -17,7 +17,7 @@ import {
 import { open } from "../lib/secret-box";
 import { rangeSchema, rangeStart } from "../lib/range";
 import { zeroFillByDay } from "../lib/series";
-import { resolveSite } from "../lib/site";
+import { invalidateSiteCache, resolveSite } from "../lib/site";
 
 /**
  * A conversion, for ad-performance purposes, is a click-type event — which on a
@@ -584,6 +584,37 @@ export const adsRouter = router({
 				});
 			}
 			return removed;
+		}),
+
+	/**
+	 * The secret this workspace's push feeds authenticate with, minted on first
+	 * request so a site that never uses it carries no credential.
+	 *
+	 * Admin-only, and returned in full: unlike a stored OAuth token there is
+	 * nothing to reveal that the caller does not already have authority over,
+	 * and it has to be pasted into the ad platform to be useful.
+	 */
+	spendKey: adminProcedure
+		.input(z.object({ siteId: z.string().optional() }).optional())
+		.mutation(async ({ input }) => {
+			const target = await resolveSite(input?.siteId);
+			if (target.spendKey) return { spendKey: target.spendKey };
+
+			const spendKey = createSpendKey();
+			await db.update(site).set({ spendKey }).where(eq(site.id, target.id));
+			invalidateSiteCache();
+			return { spendKey };
+		}),
+
+	/** Invalidates the old key immediately; any feed still using it starts failing. */
+	rotateSpendKey: adminProcedure
+		.input(z.object({ siteId: z.string().optional() }).optional())
+		.mutation(async ({ input }) => {
+			const target = await resolveSite(input?.siteId);
+			const spendKey = createSpendKey();
+			await db.update(site).set({ spendKey }).where(eq(site.id, target.id));
+			invalidateSiteCache();
+			return { spendKey };
 		}),
 
 	remove: adminProcedure
