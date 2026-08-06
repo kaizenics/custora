@@ -302,6 +302,38 @@ await expectComplaint(
 	h(Button, { render: h("a", { href: "/install" }) }, "Add a site"),
 );
 
+// ── country flags ──────────────────────────────────────────────────────────
+
+console.log("\ncountry flags");
+
+const { flagEmoji } = await import("@/components/country-flag");
+
+/**
+ * A wrong offset still produces two plausible-looking glyphs — a different
+ * country's flag — so the codepoints are checked directly rather than trusting
+ * that something rendered.
+ */
+for (const [code, expected] of [
+	["ES", "1f1ea 1f1f8"],
+	["US", "1f1fa 1f1f8"],
+	["PH", "1f1f5 1f1ed"],
+] as const) {
+	const points = [...(flagEmoji(code) ?? "")]
+		.map((char) => char.codePointAt(0)?.toString(16))
+		.join(" ");
+	report(`${code} maps to the right codepoints`, points === expected, `got ${points}`);
+}
+
+report("lowercase accepted", flagEmoji("es") === flagEmoji("ES"));
+report("surrounding whitespace tolerated", flagEmoji(" es ") === flagEmoji("ES"));
+
+// Real geo data carries these, and turning them into glyph pairs would invent
+// countries that do not exist.
+for (const bad of ["XX", "", "E", "ESP", "E1", "12"]) {
+	report(`"${bad}" is not a flag`, flagEmoji(bad) === null);
+}
+report("null is not a flag", flagEmoji(null) === null);
+
 console.log(
 	failures === 0
 		? "\nAll UI render checks passed.\n"

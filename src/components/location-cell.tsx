@@ -1,3 +1,5 @@
+import { CountryFlag } from "@/components/country-flag";
+
 /**
  * Where a visitor was, as one table cell: "City, CC" with the truncated
  * address underneath. Shared by every table that shows per-event provenance,
@@ -24,7 +26,10 @@ export function LocationCell({
 	return (
 		<>
 			{country ? (
-				<span>{city ? `${city}, ${country}` : country}</span>
+				<span className="flex items-center gap-1.5">
+					<CountryFlag code={country} />
+					{city ? `${city}, ${country}` : country}
+				</span>
 			) : (
 				<span title="Address captured, but no geo source was configured when this session started">
 					Unresolved

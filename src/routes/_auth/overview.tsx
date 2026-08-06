@@ -25,6 +25,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { PageHeader } from "@/components/app-sidebar";
+import { CountryFlag } from "@/components/country-flag";
 import { MetricChart, StatTile } from "@/components/metric-chart";
 import { type Range, RangePicker } from "@/components/range-picker";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
@@ -234,9 +235,16 @@ function OverviewPage() {
 									<MagnitudeList
 										rows={locations.data.map((row) => ({
 											key: `${row.country}-${row.city}`,
-											label: row.city
-												? `${row.city}, ${row.country}`
-												: (row.country ?? "Unknown"),
+											label: (
+												<>
+													<CountryFlag code={row.country} />
+													<span className="truncate">
+														{row.city
+															? `${row.city}, ${row.country}`
+															: (row.country ?? "Unknown")}
+													</span>
+												</>
+											),
 											value: row.sessions,
 										}))}
 									/>
@@ -385,7 +393,13 @@ function ChannelTable({
 function MagnitudeList({
 	rows,
 }: {
-	rows: Array<{ key: string; label: string; value: number; meta?: string }>;
+	/** label is a node so a row can carry a flag beside its text. */
+	rows: Array<{
+		key: string;
+		label: React.ReactNode;
+		value: number;
+		meta?: string;
+	}>;
 }) {
 	const max = Math.max(1, ...rows.map((row) => row.value));
 
@@ -401,7 +415,9 @@ function MagnitudeList({
 						style={{ width: `${(row.value / max) * 100}%` }}
 						aria-hidden
 					/>
-					<span className="truncate text-xs">{row.label}</span>
+					<span className="flex min-w-0 items-center gap-2 truncate text-xs">
+						{row.label}
+					</span>
 					<span className="flex shrink-0 items-center gap-2 text-xs tabular-nums">
 						{row.meta ? (
 							<span className="text-muted-foreground">{row.meta}</span>
