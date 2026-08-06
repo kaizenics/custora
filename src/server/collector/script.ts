@@ -32,6 +32,7 @@ export const TRACKER_SCRIPT = `(function (w, d) {
   var QUEUE_KEY = "__custora_q";
   var ATTR_KEY = "__custora_attr";
   var VID_KEY = "__custora_vid";
+  var OPTOUT_KEY = "__custora_optout";
   var QUEUE_MAX = 50;
 
   var CLICK_IDS = {
@@ -151,7 +152,32 @@ export const TRACKER_SCRIPT = `(function (w, d) {
     }
   }
 
+  /**
+   * Whether this browser has opted out of being tracked.
+   *
+   * Visiting any tracked page with ?custora_optout=1 sets it; ?custora_optout=0
+   * clears it. Exists because whoever runs the dashboard visits the site
+   * constantly to check things, and on a site with tens of visitors that own
+   * testing is a large share of the numbers — a conversion rate counting the
+   * operator tapping their own phone link is not a measurement.
+   */
+  function optedOut() {
+    try {
+      var flag = new URL(w.location.href).searchParams.get("custora_optout");
+      if (flag === "1") {
+        w.localStorage.setItem(OPTOUT_KEY, "1");
+        return true;
+      }
+      if (flag === "0") w.localStorage.removeItem(OPTOUT_KEY);
+      return w.localStorage.getItem(OPTOUT_KEY) === "1";
+    } catch (e) {
+      // Blocked storage: cannot record the choice, so do not claim to.
+      return false;
+    }
+  }
+
   function emit(type, name, props, traits) {
+    if (optedOut()) return;
     send({
       k: KEY,
       t: type,
@@ -219,18 +245,22 @@ export const TRACKER_SCRIPT = `(function (w, d) {
     return null;
   }
 
+  /** Returns true when at least one rule matched, so the caller can stop. */
   function applyRules(trigger, el) {
+    var fired = false;
     for (var i = 0; i < rules.length; i++) {
       var rule = rules[i];
       if (rule.t !== trigger) continue;
       var hit = ruleMatches(rule, el);
       if (hit) {
+        fired = true;
         emit(trigger === "submit" ? "form_submit" : trigger === "pageview" ? "custom" : "click", rule.n, {
           rule: rule.m + ":" + rule.p,
           text: (hit.textContent || "").trim().slice(0, 120)
         }, null);
       }
     }
+    return fired;
   }
 
   function loadRules() {
@@ -265,32 +295,54 @@ export const TRACKER_SCRIPT = `(function (w, d) {
     function (ev) {
       var el = ev.target;
 
-      // Rules are evaluated against the clicked element itself; the walk below
-      // handles the attribute and outbound-link cases.
-      if (rulesReady) applyRules("click", el);
-      else if (pendingClicks.length < 20) pendingClicks.push(el);
-
-      while (el && el !== d.body) {
-        var marked = el.getAttribute && el.getAttribute("data-custora-event");
+      /*
+       * One click must produce one event.
+       *
+       * These three ways of naming a click overlap constantly — a phone link
+       * marked with data-custora-event is also matched by a "text contains Call"
+       * rule and is also a tel: link. Firing all three recorded the same tap
+       * three times under three names, which inflates every count and splits the
+       * history of one action across rows that look like different actions.
+       *
+       * So they are a precedence chain, most specific first:
+       *   1. data-custora-event   — the site said exactly what this is
+       *   2. a matching rule      — the dashboard said what to watch for
+       *   3. outbound / tel / mail — nothing said anything; infer it
+       */
+      var node = el;
+      while (node && node !== d.body) {
+        var marked = node.getAttribute && node.getAttribute("data-custora-event");
         if (marked) {
-          emit("click", marked, { text: (el.textContent || "").trim().slice(0, 120) }, null);
+          emit("click", marked, { text: (node.textContent || "").trim().slice(0, 120) }, null);
           return;
         }
-        if (el.tagName === "A" && el.href) {
-          var outbound = el.hostname && el.hostname !== w.location.hostname;
-          var tel = el.href.indexOf("tel:") === 0;
-          var mail = el.href.indexOf("mailto:") === 0;
+        node = node.parentNode;
+      }
+
+      if (!rulesReady) {
+        // Rules have not arrived yet; replayed once they do.
+        if (pendingClicks.length < 20) pendingClicks.push(el);
+        return;
+      }
+      if (applyRules("click", el)) return;
+
+      node = el;
+      while (node && node !== d.body) {
+        if (node.tagName === "A" && node.href) {
+          var outbound = node.hostname && node.hostname !== w.location.hostname;
+          var tel = node.href.indexOf("tel:") === 0;
+          var mail = node.href.indexOf("mailto:") === 0;
           if (outbound || tel || mail) {
             emit(
               "click",
-              (el.textContent || "").trim().slice(0, 120) || el.href,
-              { href: el.href, outbound: !!outbound },
+              (node.textContent || "").trim().slice(0, 120) || node.href,
+              { href: node.href, outbound: !!outbound },
               null
             );
           }
           return;
         }
-        el = el.parentNode;
+        node = node.parentNode;
       }
     },
     true

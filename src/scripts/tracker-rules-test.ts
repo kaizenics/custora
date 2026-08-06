@@ -17,6 +17,7 @@ const WRITE_KEY = "ck_test";
 const ORIGIN = "https://track.northgate.dev";
 
 const RULES = [
+	{ n: "Call rule", t: "click", m: "text", p: "Call" },
 	{ n: "Booked a call", t: "click", m: "selector", p: "#book-demo" },
 	{ n: "Pricing interest", t: "click", m: "text", p: "see pricing" },
 	{ n: "Signup link", t: "click", m: "href", p: "/signup" },
@@ -33,6 +34,8 @@ async function run() {
 			<button class="other">See Pricing</button>
 			<a href="https://northgate.dev/signup">Create account</a>
 			<button id="untracked">Nothing</button>
+			<a id="phone" href="tel:+34600111222" data-custora-event="Phone call">Call Now</a>
+			<a id="bare-tel" href="tel:+34600999888">Call the office</a>
 		</body></html>`,
 		{ url: "https://northgate.dev/", runScripts: "outside-only", pretendToBeVisual: true },
 	);
@@ -73,6 +76,8 @@ async function run() {
 	click(".other");
 	click("a[href*='signup']");
 	click("#untracked");
+	click("#phone");
+	click("#bare-tel");
 
 	await new Promise((r) => setTimeout(r, 20));
 
@@ -84,7 +89,27 @@ async function run() {
 		["href rule fired", names.includes("Signup link")],
 		["malformed selector did not fire", !names.includes("Broken rule")],
 		["malformed selector did not break later rules", names.length >= 3],
-		["untracked element produced no rule event", names.filter(Boolean).length === 3],
+		["untracked element produced no rule event", names.filter(Boolean).length === 5],
+
+		/*
+		 * The marked phone link carries data-custora-event, matches the "Call"
+		 * text rule, and is a tel: link — three things that each used to emit, so
+		 * one tap was recorded three times under three names.
+		 */
+		[
+			"marked phone link emits once, under its own name",
+			names.filter((n) => n === "Phone call").length === 1,
+		],
+		[
+			// Twice would mean the marked element triggered it as well.
+			"the overlapping rule fired only for the unmarked link",
+			names.filter((n) => n === "Call rule").length === 1,
+		],
+		[
+			// Precedence 2 beats 3: a rule name is more useful than link text.
+			"an unmarked tel: link is named by the rule, not its text",
+			!names.includes("Call the office"),
+		],
 	];
 
 	let failed = 0;
