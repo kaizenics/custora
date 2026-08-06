@@ -29,7 +29,7 @@ export const adsOauth = new Hono();
 
 /** Sends the reader back to the app with a message rather than a bare error page. */
 function backToApp(status: "connected" | "error", detail?: string) {
-	const url = new URL("/ads", getBaseUrl());
+	const url = new URL("/integrations", getBaseUrl());
 	url.searchParams.set("google", status);
 	if (detail) url.searchParams.set("detail", detail.slice(0, 300));
 	return url.toString();

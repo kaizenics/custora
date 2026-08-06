@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -30,21 +30,17 @@ import {
 } from "@/components/ui/table";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Info, Link2, Link2Off, RefreshCw, Trash2, TriangleAlert, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Info, Trash2, Upload } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader, Toolbar } from "@/components/app-sidebar";
-import { CodeBlock } from "@/components/code-block";
-import { CopyButton } from "@/components/copy-button";
 import { TableScroll } from "@/components/table-scroll";
 import { RangePicker } from "@/components/range-picker";
 import { StackedAreaChart } from "@/components/stacked-area-chart";
 import { useIsAdmin } from "@/lib/auth-client";
-import { formatCurrency, formatDate, formatNumber, formatRelative } from "@/lib/format";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/format";
 import type { Range } from "@/api/lib/range";
-import { googleAdsScript } from "@/lib/google-ads-script";
-import { getBaseUrl } from "@/lib/base-url";
 import { useWorkspace } from "@/lib/workspace";
 import { useTRPC } from "@/utils/trpc";
 
@@ -150,9 +146,7 @@ function AdsPage() {
 					</div>
 				) : null}
 
-				{isAdmin ? <GoogleConnection siteId={siteId} /> : null}
-				{isAdmin ? <ScriptPush siteId={siteId} /> : null}
-
+	
 				<div className="border-b p-4">
 					<Card>
 						<CardHeader>
@@ -475,291 +469,5 @@ function ImportDialog({ siteId }: { siteId?: string }) {
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>
-	);
-}
-
-/**
- * Connect / sync / disconnect for Google Ads.
- *
- * The OAuth handshake is a browser redirect rather than a fetch, so connecting
- * is a plain link out to the server route; the result comes back as a query
- * parameter on the way in.
- */
-function GoogleConnection({ siteId }: { siteId?: string }) {
-	const trpc = useTRPC();
-	const queryClient = useQueryClient();
-	const [days, setDays] = useState(30);
-
-	const connection = useQuery(
-		trpc.ads.connection.queryOptions(
-			{ siteId },
-			{ retry: false, enabled: Boolean(siteId) },
-		),
-	);
-
-	// The callback redirects back with the outcome; report it once, then strip
-	// it so a refresh does not repeat the toast.
-	useEffect(() => {
-		const params = new URLSearchParams(window.location.search);
-		const status = params.get("google");
-		if (!status) return;
-
-		const detail = params.get("detail");
-		if (status === "connected") {
-			toast.success(detail ?? "Google Ads connected.");
-		} else {
-			toast.error(detail ?? "Could not connect Google Ads.");
-		}
-		queryClient.invalidateQueries({ queryKey: trpc.ads.pathKey() });
-		window.history.replaceState({}, "", window.location.pathname);
-	}, [queryClient, trpc]);
-
-	const sync = useMutation(
-		trpc.ads.sync.mutationOptions({
-			onSuccess: (result) => {
-				queryClient.invalidateQueries({ queryKey: trpc.ads.pathKey() });
-				toast.success(
-					`Synced ${result.written} campaign-day(s) from the last ${result.days} days.`,
-				);
-			},
-			onError: (error) => toast.error(error.message),
-		}),
-	);
-
-	const disconnect = useMutation(
-		trpc.ads.disconnect.mutationOptions({
-			onSuccess: () => {
-				queryClient.invalidateQueries({ queryKey: trpc.ads.pathKey() });
-				toast.success("Google Ads disconnected. Imported spend was kept.");
-			},
-			onError: (error) => toast.error(error.message),
-		}),
-	);
-
-	if (connection.isPending) {
-		return (
-			<div className="border-b p-4">
-				<Skeleton className="h-24 w-full" />
-			</div>
-		);
-	}
-
-	const account = connection.data?.account;
-
-	// Nothing to offer until the server has an OAuth client — say why rather
-	// than showing a button that returns a 501.
-	if (!connection.data?.configured) {
-		return (
-			<div className="border-b p-4">
-				<Card>
-					<CardHeader>
-						<CardTitle>Google Ads</CardTitle>
-						<CardDescription>
-							Not configured on this server. Set{" "}
-							<code className="font-mono">GOOGLE_ADS_CLIENT_ID</code>,{" "}
-							<code className="font-mono">GOOGLE_ADS_CLIENT_SECRET</code> and{" "}
-							<code className="font-mono">GOOGLE_ADS_DEVELOPER_TOKEN</code>, then
-							restart. Until then, import the CSV export instead — the reports
-							are identical either way.
-						</CardDescription>
-					</CardHeader>
-				</Card>
-			</div>
-		);
-	}
-
-	return (
-		<div className="border-b p-4">
-			<Card>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						Google Ads
-						<Badge variant={account ? "default" : "outline"}>
-							{account ? "connected" : "not connected"}
-						</Badge>
-					</CardTitle>
-					<CardDescription>
-						{account
-							? `Customer ${account.customerId}${
-									account.lastSyncedAt
-										? ` · last synced ${formatRelative(account.lastSyncedAt)}`
-										: " · never synced"
-								}`
-							: "Authorise the Google account that manages your campaigns. Spend syncs into the same reports the CSV import fills."}
-					</CardDescription>
-				</CardHeader>
-
-				<CardContent className="flex flex-col gap-3">
-					{account?.lastSyncError ? (
-						<div className="flex items-start gap-2 border border-destructive/40 p-3">
-							<TriangleAlert className="mt-0.5 size-4 shrink-0 text-destructive" />
-							<div>
-								<p className="font-medium text-destructive text-xs">
-									Last sync failed
-								</p>
-								<p className="mt-0.5 text-muted-foreground text-xs">
-									{account.lastSyncError}
-								</p>
-							</div>
-						</div>
-					) : null}
-
-					<div className="flex flex-wrap items-center gap-2">
-						{account ? (
-							<>
-								<Button
-									size="sm"
-									disabled={sync.isPending}
-									onClick={() => sync.mutate({ siteId, days })}
-								>
-									<RefreshCw data-icon="inline-start" />
-									{sync.isPending ? "Syncing" : `Sync last ${days} days`}
-								</Button>
-								<Input
-									type="number"
-									min={1}
-									max={365}
-									value={days}
-									onChange={(e) => setDays(Number(e.target.value) || 30)}
-									className="w-20"
-									aria-label="Days to sync"
-								/>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={disconnect.isPending}
-									onClick={() => disconnect.mutate({ siteId })}
-								>
-									<Link2Off data-icon="inline-start" />
-									Disconnect
-								</Button>
-							</>
-						) : (
-							<a
-								href={`/api/ads/google/connect${siteId ? `?siteId=${encodeURIComponent(siteId)}` : ""}`}
-								className={buttonVariants({ size: "sm" })}
-							>
-								<Link2 data-icon="inline-start" />
-								Connect Google Ads
-							</a>
-						)}
-					</div>
-				</CardContent>
-			</Card>
-		</div>
-	);
-}
-
-/**
- * The no-approval path: a script pasted into Google Ads that pushes spend here
- * daily. Shown alongside the OAuth connection because for most people it is the
- * one that works today — the API route waits on Google's review.
- */
-function ScriptPush({ siteId }: { siteId?: string }) {
-	const trpc = useTRPC();
-	const [key, setKey] = useState<string | null>(null);
-
-	const reveal = useMutation(
-		trpc.ads.spendKey.mutationOptions({
-			onSuccess: (result) => setKey(result.spendKey),
-			onError: (error) => toast.error(error.message),
-		}),
-	);
-
-	const rotate = useMutation(
-		trpc.ads.rotateSpendKey.mutationOptions({
-			onSuccess: (result) => {
-				setKey(result.spendKey);
-				toast.success("Key rotated. Update the script in Google Ads — the old one stops working now.");
-			},
-			onError: (error) => toast.error(error.message),
-		}),
-	);
-
-	const endpoint = new URL("/api/spend/ingest", getBaseUrl()).toString();
-
-	return (
-		<div className="border-b p-4">
-			<Card>
-				<CardHeader>
-					<CardTitle>Push from Google Ads (no developer token)</CardTitle>
-					<CardDescription>
-						A script that runs inside your own Google Ads account and sends
-						spend here every day. No manager account, no API review — this
-						works immediately.
-					</CardDescription>
-				</CardHeader>
-
-				<CardContent className="flex flex-col gap-4">
-					{!key ? (
-						<div>
-							<Button
-								size="sm"
-								disabled={reveal.isPending}
-								onClick={() => reveal.mutate({ siteId })}
-							>
-								{reveal.isPending ? "Preparing" : "Generate the script"}
-							</Button>
-							<p className="mt-2 text-[11px] text-muted-foreground">
-								Creates a secret key for this workspace and builds the script
-								around it. Different from the tracking snippet's key, which is
-								public.
-							</p>
-						</div>
-					) : (
-						<>
-							<ol className="flex flex-col gap-2 text-xs text-muted-foreground">
-								<li>
-									<span className="font-medium text-foreground">1.</span> In
-									Google Ads: <span className="font-medium text-foreground">Tools → Bulk actions → Scripts</span>,
-									then <span className="font-medium text-foreground">+</span>.
-								</li>
-								<li>
-									<span className="font-medium text-foreground">2.</span> Replace
-									everything in the editor with the script below, then Save.
-								</li>
-								<li>
-									<span className="font-medium text-foreground">3.</span> Run it
-									once — Google asks you to authorise it the first time.
-								</li>
-								<li>
-									<span className="font-medium text-foreground">4.</span> Set its
-									frequency to <span className="font-medium text-foreground">Daily</span>.
-									Spend appears here after the first run.
-								</li>
-							</ol>
-
-							<CodeBlock
-								language="javascript"
-								title="Google Ads script"
-								action={
-									<CopyButton
-										value={googleAdsScript({ endpoint, spendKey: key })}
-										label="Copy script"
-									/>
-								}
-								code={googleAdsScript({ endpoint, spendKey: key })}
-							/>
-
-							<div className="flex items-center gap-2">
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={rotate.isPending}
-									onClick={() => rotate.mutate({ siteId })}
-								>
-									<RefreshCw data-icon="inline-start" />
-									Rotate key
-								</Button>
-								<p className="text-[11px] text-muted-foreground">
-									The key is embedded in the script above — treat it like a
-									password. Rotating breaks any script still using the old one.
-								</p>
-							</div>
-						</>
-					)}
-				</CardContent>
-			</Card>
-		</div>
 	);
 }
