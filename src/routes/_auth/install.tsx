@@ -25,9 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
-	Check,
 	ChevronRight,
-	Copy,
 	Info,
 	Plus,
 	RefreshCw,
@@ -38,6 +36,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/app-sidebar";
+import { CopyButton } from "@/components/copy-button";
 import { CodeBlock } from "@/components/code-block";
 import { useIsAdmin } from "@/lib/auth-client";
 import { NewSiteDialog } from "@/components/new-site-dialog";
@@ -302,28 +301,6 @@ function Dot() {
 	return <span aria-hidden className="text-muted-foreground/50">·</span>;
 }
 
-function CopyButton({ value, label }: { value: string; label: string }) {
-	const [copied, setCopied] = useState(false);
-
-	return (
-		<Button
-			variant="ghost"
-			size="xs"
-			onClick={async () => {
-				await navigator.clipboard.writeText(value);
-				setCopied(true);
-				setTimeout(() => setCopied(false), 1500);
-			}}
-		>
-			{copied ? (
-				<Check data-icon="inline-start" />
-			) : (
-				<Copy data-icon="inline-start" />
-			)}
-			{copied ? "Copied" : label}
-		</Button>
-	);
-}
 
 
 /**
