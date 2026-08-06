@@ -20,6 +20,7 @@ import { z } from "zod";
 
 import { protectedProcedure, router } from "../index";
 import { rangeSchema, rangeStart } from "../lib/range";
+import { conversionEventFilter } from "../lib/conversions";
 import { resolveSite } from "../lib/site";
 
 /**
@@ -102,6 +103,30 @@ export const analyticsRouter = router({
 					.groupBy(deal.stage),
 			]);
 
+		/**
+		 * Conversions: distinct visitors who did something the site marked as a
+		 * lead action. Counted per visitor, not per event, so someone tapping the
+		 * phone link twice is one lead rather than two.
+		 *
+		 * Separate from `leads`, which counts identified contacts. On a site whose
+		 * conversion path is an anonymous phone tap those are different numbers,
+		 * and collapsing them would either hide the taps or invent contacts.
+		 */
+		const [conversionTotals] = await db.all<{ visitors: number; events: number }>(sql`
+			SELECT
+				COUNT(DISTINCT e.visitor_id) AS visitors,
+				COUNT(*) AS events
+			FROM event e
+			WHERE e.site_id = ${site.id}
+			  AND e.created_at >= ${since}
+			  AND ${conversionEventFilter(site.id)}
+		`);
+
+		const [conversionRules] = await db.all<{ total: number }>(sql`
+			SELECT COUNT(*) AS total FROM event_rule
+			WHERE site_id = ${site.id} AND is_conversion = 1
+		`);
+
 		const byStage = new Map(dealTotals.map((row) => [row.stage, row]));
 		const won = byStage.get("won");
 		const openDeals = byStage.get("open");
@@ -118,8 +143,25 @@ export const analyticsRouter = router({
 			sessions: sessions?.value ?? 0,
 			pageviews: pageviews?.value ?? 0,
 			leads: leadCount,
-			/** Visitor-to-lead rate. The number the whole tracking spine exists to produce. */
-			conversionRate: visitorCount > 0 ? leadCount / visitorCount : 0,
+			/** Distinct visitors who took a marked lead action. */
+			conversions: Number(conversionTotals?.visitors ?? 0),
+			conversionEvents: Number(conversionTotals?.events ?? 0),
+			/**
+			 * False when nothing is flagged yet, so the UI can explain a zero
+			 * instead of implying nobody converted.
+			 */
+			hasConversionRules: Number(conversionRules?.total ?? 0) > 0,
+			/**
+			 * Visitor-to-lead rate. Measured against conversions where the site has
+			 * said what one is, falling back to identified contacts otherwise —
+			 * dividing by a metric the site never defined would read as 0%.
+			 */
+			conversionRate:
+				visitorCount > 0
+					? (Number(conversionRules?.total ?? 0) > 0
+							? Number(conversionTotals?.visitors ?? 0)
+							: leadCount) / visitorCount
+					: 0,
 			dealsWon: won?.deals ?? 0,
 			revenueCents: Number(won?.revenue ?? 0),
 			pipelineDeals: openDeals?.deals ?? 0,

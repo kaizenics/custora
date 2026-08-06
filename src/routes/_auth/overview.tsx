@@ -134,13 +134,34 @@ function OverviewPage() {
 								active={metric === "pageviews"}
 								onClick={() => setMetric("pageviews")}
 							/>
-							<StatTile
-								label="Leads"
-								value={formatNumber(summary.data?.leads ?? 0)}
-								hint={`${formatPercent(summary.data?.conversionRate ?? 0)} of visitors`}
-								active={metric === "leads"}
-								onClick={() => setMetric("leads")}
-							/>
+							{/*
+							  * Conversions once the site has said what one is, contacts
+							  * otherwise. On a site whose leads arrive as anonymous phone
+							  * taps, a "Leads" tile reading 0 is technically true and
+							  * completely misleading — nobody is identified, but plenty
+							  * converted.
+							  */}
+							{summary.data?.hasConversionRules ? (
+								<StatTile
+									label="Conversions"
+									value={formatNumber(summary.data?.conversions ?? 0)}
+									hint={`${formatPercent(summary.data?.conversionRate ?? 0)} of visitors`}
+									active={metric === "leads"}
+									onClick={() => setMetric("leads")}
+								/>
+							) : (
+								<StatTile
+									label="Leads"
+									value={formatNumber(summary.data?.leads ?? 0)}
+									hint={
+										summary.data
+											? "mark a click rule as a conversion to count taps"
+											: undefined
+									}
+									active={metric === "leads"}
+									onClick={() => setMetric("leads")}
+								/>
+							)}
 							<StatTile
 								label="Revenue"
 								value={formatCurrency(summary.data?.revenueCents ?? 0)}

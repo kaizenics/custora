@@ -262,9 +262,19 @@ function RulesPage() {
 												)}
 											</TableCell>
 											<TableCell>
-												<Badge variant={rule.enabled ? "default" : "outline"}>
-													{rule.enabled ? "Active" : "Paused"}
-												</Badge>
+												<div className="flex items-center gap-1.5">
+													<Badge variant={rule.enabled ? "default" : "outline"}>
+														{rule.enabled ? "Active" : "Paused"}
+													</Badge>
+													{rule.isConversion ? (
+														<Badge
+															variant="secondary"
+															title="Matches count as leads in the reports"
+														>
+															Conversion
+														</Badge>
+													) : null}
+												</div>
 											</TableCell>
 											<TableCell className="pr-5 text-right whitespace-nowrap text-muted-foreground">
 												{/* The menu must not toggle the row it sits in. */}
@@ -275,9 +285,10 @@ function RulesPage() {
 													{formatRelative(rule.createdAt)}
 													{isAdmin ? (
 														<RuleActions
-														ruleId={rule.id}
-														name={rule.name}
+															ruleId={rule.id}
+															name={rule.name}
 															enabled={rule.enabled}
+															isConversion={rule.isConversion}
 														/>
 													) : null}
 												</div>
@@ -398,10 +409,12 @@ function RuleActions({
 	ruleId,
 	name,
 	enabled,
+	isConversion,
 }: {
 	ruleId: string;
 	name: string;
 	enabled: boolean;
+	isConversion: boolean;
 }) {
 	const trpc = useTRPC();
 	const queryClient = useQueryClient();
@@ -413,6 +426,23 @@ function RuleActions({
 			onSuccess: (rule) => {
 				invalidate();
 				toast.success(`${rule.name} ${rule.enabled ? "resumed" : "paused"}`);
+			},
+			onError: (error) => toast.error(error.message),
+		}),
+	);
+
+	const setConversion = useMutation(
+		trpc.rules.setConversion.mutationOptions({
+			onSuccess: (rule) => {
+				invalidate();
+				// Analytics reads conversions by rule name, so past taps recount too.
+				queryClient.invalidateQueries({ queryKey: trpc.analytics.pathKey() });
+				queryClient.invalidateQueries({ queryKey: trpc.ads.pathKey() });
+				toast.success(
+					rule.isConversion
+						? `${rule.name} now counts as a lead, including the ones already recorded.`
+						: `${rule.name} no longer counts as a lead.`,
+				);
 			},
 			onError: (error) => toast.error(error.message),
 		}),
@@ -436,7 +466,14 @@ function RuleActions({
 			>
 				<MoreHorizontal />
 			</DropdownMenuTrigger>
-			<DropdownMenuContent align="end" className="w-40">
+			<DropdownMenuContent align="end" className="w-48">
+				<DropdownMenuItem
+					onClick={() =>
+						setConversion.mutate({ ruleId, isConversion: !isConversion })
+					}
+				>
+					{isConversion ? "Not a conversion" : "Count as conversion"}
+				</DropdownMenuItem>
 				<DropdownMenuItem
 					onClick={() => setEnabled.mutate({ ruleId, enabled: !enabled })}
 				>

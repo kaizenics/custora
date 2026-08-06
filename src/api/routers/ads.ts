@@ -7,6 +7,7 @@ import { z } from "zod";
 
 import { adminProcedure, protectedProcedure, router } from "../index";
 import { parseGoogleAdsCsv } from "../lib/ads-csv";
+import { conversionEventFilter } from "../lib/conversions";
 import {
 	accessTokenFor,
 	fetchCampaignDays,
@@ -20,16 +21,14 @@ import { zeroFillByDay } from "../lib/series";
 import { invalidateSiteCache, resolveSite } from "../lib/site";
 
 /**
- * A conversion, for ad-performance purposes, is a click-type event — which on a
- * service site means a phone or WhatsApp tap.
+ * A conversion, for ad-performance purposes, is an event the site flagged as
+ * one — not any click.
  *
- * Deliberately not `contact`: the existing channels report attributes through
- * contact_id, and a tap identifies nobody, so that report reads zero on a site
- * whose entire conversion path is anonymous. Counting the taps is the only way
- * these numbers describe reality. When conversion events become a flag on a
- * rule, this becomes "events the site marked as conversions" instead.
+ * Was `type = 'click'` while the flag did not exist, which counted every
+ * outbound and marked click as a lead and understated cost per lead
+ * accordingly.
  */
-const CONVERSION_SQL = sql`e.type = 'click'`;
+const conversionSql = (siteId: string) => conversionEventFilter(siteId);
 
 /**
  * Campaign performance, spend joined to conversions.
@@ -77,7 +76,7 @@ async function campaignRows(siteId: string, since: Date) {
 			SELECT
 				a.campaign AS campaign,
 				COUNT(DISTINCT a.visitor_id) AS visitors,
-				COUNT(DISTINCT CASE WHEN ${CONVERSION_SQL} THEN e.id END) AS conversions,
+				COUNT(DISTINCT CASE WHEN ${conversionSql(siteId)} THEN e.id END) AS conversions,
 				COALESCE(SUM(CASE WHEN d.stage = 'won' THEN d.value_cents ELSE 0 END), 0) AS revenue_cents
 			FROM arrivals a
 			LEFT JOIN event e

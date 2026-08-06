@@ -21,6 +21,8 @@ const patternSchema = z.string().min(1).max(500);
 
 const ruleInput = z.object({
 	name: z.string().min(1).max(120),
+	/** Whether a match counts as a lead in the reports. */
+	isConversion: z.boolean().optional(),
 	trigger: z.enum(RULE_TRIGGERS),
 	matcher: z.enum(RULE_MATCHERS),
 	pattern: patternSchema,
@@ -63,6 +65,7 @@ export const rulesRouter = router({
 					matcher: eventRule.matcher,
 					pattern: eventRule.pattern,
 					enabled: eventRule.enabled,
+					isConversion: eventRule.isConversion,
 					createdAt: eventRule.createdAt,
 					fireCount: sql<number>`
 						coalesce((
@@ -107,6 +110,7 @@ export const rulesRouter = router({
 					trigger: input.trigger,
 					matcher: input.matcher,
 					pattern: input.pattern,
+					isConversion: input.isConversion ?? false,
 				})
 				.returning();
 			return created;
@@ -125,6 +129,27 @@ export const rulesRouter = router({
 				.set(patch)
 				.where(eq(eventRule.id, ruleId))
 				.returning();
+			if (!updated) {
+				throw new TRPCError({ code: "NOT_FOUND", message: "Rule not found" });
+			}
+			return updated;
+		}),
+
+	/**
+	 * Marks a rule as a conversion, or unmarks it.
+	 *
+	 * Applies retroactively — the reports resolve conversions by matching event
+	 * names against the flagged rules at read time, so flagging a rule counts
+	 * the taps it already produced rather than only future ones.
+	 */
+	setConversion: adminProcedure
+		.input(z.object({ ruleId: z.string(), isConversion: z.boolean() }))
+		.mutation(async ({ input }) => {
+			const [updated] = await db
+				.update(eventRule)
+				.set({ isConversion: input.isConversion })
+				.where(eq(eventRule.id, input.ruleId))
+				.returning({ id: eventRule.id, name: eventRule.name, isConversion: eventRule.isConversion });
 			if (!updated) {
 				throw new TRPCError({ code: "NOT_FOUND", message: "Rule not found" });
 			}

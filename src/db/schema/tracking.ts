@@ -331,6 +331,18 @@ export const eventRule = sqliteTable(
 		/** CSS selector, substring of text/href, or URL path fragment. */
 		pattern: text("pattern").notNull(),
 		enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+		/**
+		 * Whether a match counts as a lead.
+		 *
+		 * Needed because a conversion here is anonymous — a phone or WhatsApp tap
+		 * identifies nobody, so the contact table cannot answer "did this visit
+		 * convert". Without this flag the reports can only count identified
+		 * contacts, which reads as zero on a site whose entire conversion path is
+		 * a tap.
+		 */
+		isConversion: integer("is_conversion", { mode: "boolean" })
+			.default(false)
+			.notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" })
 			.default(now)
 			.notNull(),
