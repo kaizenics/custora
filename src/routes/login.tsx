@@ -1,121 +1,126 @@
-import { Separator } from "@/components/ui/separator";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-
-import { getBaseUrl } from "@/lib/base-url";
-
+import { CustoraLogo } from "@/components/custora-logo";
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
+import { getBaseUrl } from "@/lib/base-url";
 
 export const Route = createFileRoute("/login")({
 	component: RouteComponent,
+	head: () => ({
+		meta: [
+			{ title: "Sign in · Custora" },
+			{
+				name: "description",
+				content: "Sign in to your Custora attribution workspace.",
+			},
+		],
+	}),
 });
 
-/**
- * What the product actually does, in the order it happens. Deliberately plain
- * text rather than a mocked-up dashboard: a fake screenshot on a login screen
- * is a tell, and these users already know the product.
- */
-const STAGES = [
-	{
-		title: "Ad click",
-		body: "Click IDs and campaign captured the moment someone lands.",
-	},
-	{
-		title: "Anonymous visit",
-		body: "Every page and interaction recorded before you know who they are.",
-	},
-	{
-		title: "Lead",
-		body: "An email arrives and their whole history is attached retroactively.",
-	},
-	{
-		title: "Deal",
-		body: "Revenue closes the loop back to the campaign that started it.",
-	},
+const TOUCHPOINTS = [
+	{ title: "Google Ads", meta: "Campaign click", time: "Day 1" },
+	{ title: "Pricing viewed", meta: "Anonymous visit", time: "Day 3" },
+	{ title: "Demo requested", meta: "Contact identified", time: "Day 8" },
+	{ title: "Closed won", meta: "Revenue attributed", time: "Day 17" },
 ];
 
 function RouteComponent() {
-	// Signing in is the common case; creating an account happens once.
 	const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
-	// Registration is closed in production unless explicitly opened. Offering a
-	// link that always fails is worse than not offering one.
+	// Registration stays closed in production unless explicitly opened.
 	const [signUpEnabled, setSignUpEnabled] = useState(false);
 
 	useEffect(() => {
 		fetch(`${getBaseUrl()}/api/public-config`)
-			.then((r) => r.json())
+			.then((response) => response.json())
 			.then((config) => setSignUpEnabled(Boolean(config?.signUpEnabled)))
 			.catch(() => setSignUpEnabled(false));
 	}, []);
 
 	return (
-		<div className="grid min-h-svh lg:grid-cols-2">
-			<main className="flex flex-col justify-center px-6 py-10 sm:px-10">
-				<div className="mx-auto w-full max-w-sm">
-					<div className="mb-8 flex items-center gap-2">
-						<div className="flex size-6 items-center justify-center rounded-md bg-primary font-semibold text-[10px] text-primary-foreground">
-							C
+		<div className="auth-shell min-h-svh p-0 sm:p-4 lg:p-5">
+			<div className="auth-frame mx-auto grid min-h-svh max-w-[1480px] overflow-hidden sm:min-h-[calc(100svh-2rem)] sm:rounded-3xl lg:grid-cols-[minmax(25rem,0.86fr)_minmax(34rem,1.14fr)]">
+				<main className="auth-main flex min-w-0 flex-col px-6 py-7 sm:px-10 sm:py-9 xl:px-16">
+					<header>
+						<CustoraLogo />
+					</header>
+
+					<div className="flex flex-1 items-center py-12 sm:py-16">
+						<div className="auth-form mx-auto w-full max-w-[25rem]">
+							{mode === "sign-in" || !signUpEnabled ? (
+								<SignInForm
+									onSwitchToSignUp={
+										signUpEnabled ? () => setMode("sign-up") : undefined
+									}
+								/>
+							) : (
+								<SignUpForm onSwitchToSignIn={() => setMode("sign-in")} />
+							)}
 						</div>
-						<span className="font-medium text-sm tracking-tight">Custora</span>
 					</div>
 
-					{mode === "sign-in" || !signUpEnabled ? (
-						<SignInForm
-							onSwitchToSignUp={
-								signUpEnabled ? () => setMode("sign-up") : undefined
-							}
-						/>
-					) : (
-						<SignUpForm onSwitchToSignIn={() => setMode("sign-in")} />
-					)}
-				</div>
-			</main>
+					<footer className="flex flex-wrap items-center gap-x-5 gap-y-2 text-muted-foreground text-xs">
+						<span>© {new Date().getFullYear()} Custora</span>
+						<span>Private by design</span>
+					</footer>
+				</main>
 
-			{/* Hidden below lg — an explainer stacked above a login form is just noise. */}
-			<aside className="hidden flex-col justify-center border-l bg-muted/30 px-12 py-10 lg:flex">
-				<div className="max-w-md">
-					<h2 className="font-medium text-xl tracking-tight">
-						Attribution that survives the sales cycle
-					</h2>
-					<p className="mt-2 text-muted-foreground text-sm leading-relaxed">
-						Custora connects the ad click to the closed deal, even when weeks
-						pass in between and the visitor changes device.
-					</p>
+				<aside className="auth-story relative hidden min-h-0 overflow-hidden px-10 py-9 lg:flex lg:flex-col xl:px-14 xl:py-12">
+					<div className="auth-grid" aria-hidden />
+					<div className="relative flex items-center justify-between">
+						<p className="auth-eyebrow">Revenue attribution</p>
+						<div className="auth-live flex items-center gap-2 text-xs">
+							<span className="size-1.5 rounded-full" />
+							Live journey
+						</div>
+					</div>
 
-					<Separator className="my-8" />
+					<div className="relative mt-auto max-w-xl pb-10 xl:pb-14">
+						<p className="auth-kicker mb-5">From first click to closed won</p>
+						<h2 className="max-w-[12ch] text-balance font-semibold text-4xl leading-[1.03] tracking-[-0.045em] xl:text-5xl">
+							Know which campaigns actually create revenue.
+						</h2>
+						<p className="auth-story-copy mt-5 max-w-lg text-sm leading-relaxed xl:text-base">
+							Custora connects anonymous sessions, known contacts, and closed
+							deals into one complete customer journey.
+						</p>
+					</div>
 
-					{/*
-					 * No gap on the list: the spacing lives inside each item as padding
-					 * instead. A gap sits *between* list items, so the flex-1 connector
-					 * would only fill its own item's height and stop short of the next
-					 * marker, leaving the line visibly broken at every step.
-					 */}
-					<ol className="flex flex-col">
-						{STAGES.map((stage, index) => {
-							const isLast = index === STAGES.length - 1;
-							return (
-								<li key={stage.title} className="flex gap-4">
-									<div className="flex flex-col items-center">
-										<span className="flex size-5 shrink-0 items-center justify-center rounded-full border bg-background font-medium text-[10px] tabular-nums">
-											{index + 1}
-										</span>
-										{!isLast ? (
-											<span className="w-px flex-1 bg-border" aria-hidden />
-										) : null}
+					<div className="auth-journey relative mb-auto max-w-2xl">
+						<div className="auth-journey-head flex items-end justify-between gap-6 px-5 pb-5">
+							<div>
+								<p className="text-xs">Journey matched</p>
+								<p className="mt-1 font-semibold text-2xl tracking-[-0.04em]">
+									$42,680
+								</p>
+							</div>
+							<p className="text-right text-xs leading-relaxed">
+								17 days
+								<br />4 touchpoints
+							</p>
+						</div>
+
+						<ol className="auth-touchpoints grid grid-cols-4">
+							{TOUCHPOINTS.map((touchpoint, index) => (
+								<li key={touchpoint.title} className="relative px-5 py-5">
+									<div className="auth-node mb-4 flex size-7 items-center justify-center rounded-full text-[10px] tabular-nums">
+										{String(index + 1).padStart(2, "0")}
 									</div>
-									<div className={isLast ? "pt-0.5" : "pt-0.5 pb-6"}>
-										<p className="font-medium text-xs">{stage.title}</p>
-										<p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
-											{stage.body}
-										</p>
-									</div>
+									<p className="font-medium text-xs">{touchpoint.title}</p>
+									<p className="mt-1 text-[11px]">{touchpoint.meta}</p>
+									<p className="mt-3 text-[10px] tabular-nums">
+										{touchpoint.time}
+									</p>
 								</li>
-							);
-						})}
-					</ol>
-				</div>
-			</aside>
+							))}
+						</ol>
+					</div>
+
+					<p className="auth-proof relative mt-8 text-xs">
+						One source of truth for marketing and sales.
+					</p>
+				</aside>
+			</div>
 		</div>
 	);
 }

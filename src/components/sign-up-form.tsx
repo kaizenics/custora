@@ -1,3 +1,8 @@
+import { useForm } from "@tanstack/react-form";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowRight, Loader2, UserPlus } from "lucide-react";
+import { toast } from "sonner";
+import z from "zod";
 import { Button } from "@/components/ui/button";
 import {
 	Field,
@@ -7,11 +12,6 @@ import {
 	FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { useForm } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
-import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import z from "zod";
 
 import { authClient } from "@/lib/auth-client";
 
@@ -63,13 +63,16 @@ export default function SignUpForm({
 	}
 
 	return (
-		<div className="flex flex-col gap-6">
+		<div className="flex flex-col gap-8">
 			<div>
-				<h1 className="font-medium text-xl tracking-tight">
+				<div className="auth-secure mb-5 flex size-10 items-center justify-center rounded-xl">
+					<UserPlus className="size-4" aria-hidden />
+				</div>
+				<h1 className="font-semibold text-3xl tracking-[-0.045em] sm:text-4xl">
 					Create an account
 				</h1>
-				<p className="mt-1 text-muted-foreground text-sm">
-					You will need a tracked site before any data shows up.
+				<p className="mt-3 max-w-sm text-muted-foreground text-sm leading-relaxed">
+					Start connecting campaigns, customer journeys, and revenue.
 				</p>
 			</div>
 
@@ -80,7 +83,7 @@ export default function SignUpForm({
 					form.handleSubmit();
 				}}
 			>
-				<FieldGroup>
+				<FieldGroup className="gap-5">
 					<form.Field name="name">
 						{(field) => (
 							<Field
@@ -92,6 +95,7 @@ export default function SignUpForm({
 									name={field.name}
 									autoComplete="name"
 									autoFocus
+									placeholder="Your name"
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
@@ -113,6 +117,7 @@ export default function SignUpForm({
 									name={field.name}
 									type="email"
 									autoComplete="email"
+									placeholder="you@company.com"
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
@@ -134,6 +139,7 @@ export default function SignUpForm({
 									name={field.name}
 									type="password"
 									autoComplete="new-password"
+									placeholder="Create a password"
 									value={field.state.value}
 									onBlur={field.handleBlur}
 									onChange={(e) => field.handleChange(e.target.value)}
@@ -156,19 +162,21 @@ export default function SignUpForm({
 							<Button
 								type="submit"
 								className="w-full"
+								size="lg"
 								disabled={!canSubmit || isSubmitting}
 							>
 								{isSubmitting ? (
 									<Loader2 data-icon="inline-start" className="animate-spin" />
 								) : null}
 								{isSubmitting ? "Creating account" : "Create account"}
+								{!isSubmitting ? <ArrowRight data-icon="inline-end" /> : null}
 							</Button>
 						)}
 					</form.Subscribe>
 				</FieldGroup>
 			</form>
 
-			<p className="text-muted-foreground text-sm">
+			<p className="text-center text-muted-foreground text-sm">
 				Already have an account?{" "}
 				<Button
 					variant="link"

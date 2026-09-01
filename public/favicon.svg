@@ -1,4 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#0a0a0a"/>
-  <text x="16" y="22" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="18" font-weight="600" fill="#fafafa">C</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <title>Custora</title>
+  <rect width="32" height="32" rx="9" fill="#0a0a0a"/>
+  <path d="M22.25 9.15a9 9 0 1 0 0 13.7" stroke="#ffffff" stroke-width="2.35" stroke-linecap="round"/>
+  <circle cx="22.25" cy="9.15" r="2" fill="#ffffff"/>
+  <circle cx="22.25" cy="22.85" r="2" fill="#ffffff"/>
+  <circle cx="11.1" cy="16" r="1.25" fill="#ffffff"/>
 </svg>
