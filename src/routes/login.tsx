@@ -39,7 +39,7 @@ function RouteComponent() {
 
 	return (
 		<div className="auth-shell min-h-svh p-0 sm:p-4 lg:p-5">
-			<div className="auth-frame mx-auto grid min-h-svh max-w-[1480px] overflow-hidden sm:min-h-[calc(100svh-2rem)] sm:rounded-3xl lg:grid-cols-[minmax(25rem,0.86fr)_minmax(34rem,1.14fr)]">
+			<div className="auth-frame mx-auto grid min-h-svh max-w-[1480px] overflow-hidden sm:min-h-[calc(100svh-2rem)] sm:rounded-3xl lg:min-h-[calc(100svh-2.5rem)] lg:grid-cols-[minmax(25rem,0.86fr)_minmax(34rem,1.14fr)]">
 				<main className="auth-main flex min-w-0 flex-col px-6 py-7 sm:px-10 sm:py-9 xl:px-16">
 					<header>
 						<CustoraLogo />

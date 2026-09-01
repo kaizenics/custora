@@ -425,3 +425,157 @@
     box-shadow: none;
   }
 }
+
+/* Public marketing surface. Locked to Custora's black and white brand system. */
+.marketing-page {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+  --primary: #0a0a0a;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f2;
+  --secondary-foreground: #0a0a0a;
+  --muted: #f4f4f2;
+  --muted-foreground: #626262;
+  --border: #ddddda;
+  --input: #ddddda;
+  --ring: #0a0a0a;
+  color-scheme: light;
+}
+
+.marketing-container {
+  width: min(100% - 2rem, 1440px);
+  margin-inline: auto;
+}
+
+.marketing-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.marketing-eyebrow::before {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+.marketing-nav-link {
+  position: relative;
+  padding-block: 0.5rem;
+  transition: color 180ms ease;
+}
+
+.marketing-nav-link:hover {
+  color: #0a0a0a;
+}
+
+.marketing-nav-link::after {
+  position: absolute;
+  right: 0;
+  bottom: 0.2rem;
+  left: 0;
+  height: 1px;
+  background: #0a0a0a;
+  content: "";
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 220ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.marketing-nav-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+.marketing-skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 60;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  background: #0a0a0a;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  transform: translateY(-160%);
+  transition: transform 150ms ease;
+}
+
+.marketing-skip-link:focus {
+  transform: translateY(0);
+}
+
+.marketing-journey-step + .marketing-journey-step {
+  border-top: 1px solid rgb(10 10 10 / 12%);
+}
+
+.marketing-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
+}
+
+@media (min-width: 768px) {
+  .marketing-container {
+    width: min(100% - 4rem, 1440px);
+  }
+
+  .marketing-journey-step + .marketing-journey-step {
+    border-top: 0;
+    border-left: 1px solid rgb(10 10 10 / 12%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .marketing-hero-copy > * {
+    animation: marketing-rise 700ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+
+  .marketing-hero-copy > :nth-child(2) {
+    animation-delay: 70ms;
+  }
+
+  .marketing-hero-copy > :nth-child(3) {
+    animation-delay: 140ms;
+  }
+
+  .marketing-hero-copy > :nth-child(4) {
+    animation-delay: 210ms;
+  }
+
+  .marketing-hero-visual {
+    animation: marketing-reveal 900ms 120ms cubic-bezier(.22, 1, .36, 1) both;
+  }
+}
+
+@keyframes marketing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes marketing-reveal {
+  from {
+    opacity: 0;
+    clip-path: inset(8% 0 0 0 round 1rem);
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0 round 1rem);
+    transform: translateY(0);
+  }
+}
