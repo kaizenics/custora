@@ -305,12 +305,12 @@ function InstallSection() {
 	return (
 		<section id="install" className="marketing-section pt-24 sm:pt-32">
 			<div className="marketing-container grid gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20">
-				<div className="lg:sticky lg:top-28 lg:self-start">
+				<div className="lg:sticky lg:top-28 lg:self-start lg:pb-8">
 					<p className="marketing-eyebrow">One snippet to start</p>
 					<h2 className="mt-7 max-w-[9ch] text-balance font-semibold text-[clamp(2.8rem,4.8vw,5rem)] leading-[0.95] tracking-[-0.055em]">
 						Install once. Keep the context.
 					</h2>
-					<p className="mt-7 max-w-[28rem] text-black/52 text-lg leading-7">
+					<p className="mt-5 max-w-[28rem] text-black/52 text-lg leading-7">
 						Add the tracking script before the closing body tag. Custora starts building the customer journey from the next visit.
 					</p>
 				</div>
@@ -338,7 +338,7 @@ function InstallSection() {
 					</div>
 
 					<div className="grid flex-1 border-black/15 border-t md:grid-cols-2">
-						<article className="flex gap-5 px-5 py-7 md:px-7 md:py-9">
+						<article className="flex items-center gap-5 px-5 py-7 md:px-7 md:py-9">
 							<div className="grid size-10 shrink-0 place-items-center rounded-lg border border-black/12">
 								<MousePointerClick className="size-5" strokeWidth={1.5} aria-hidden="true" />
 							</div>
@@ -348,7 +348,7 @@ function InstallSection() {
 							</div>
 						</article>
 
-						<article className="flex gap-5 border-black/15 border-t px-5 py-7 md:border-t-0 md:border-l md:px-7 md:py-9">
+						<article className="flex items-center gap-5 border-black/15 border-t px-5 py-7 md:border-t-0 md:border-l md:px-7 md:py-9">
 							<div className="grid size-10 shrink-0 place-items-center rounded-lg border border-black/12">
 								<Fingerprint className="size-5" strokeWidth={1.5} aria-hidden="true" />
 							</div>
